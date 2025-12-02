@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 180 70% 40%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 35 100% 50%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 180 70% 40%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 35 100% 50%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .card-hover-effect {
+    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1;
+  }
+
+  .button-hover-effect {
+    @apply transition-all duration-200 hover:shadow-md active:scale-95;
+  }
+
+  .input-focus-effect {
+    @apply transition-all duration-200 focus:ring-2 focus:ring-primary/50 focus:border-primary;
+  }
+
+  .gradient-bg-blue {
+    @apply bg-gradient-to-br from-theme-blue-50 to-theme-blue-100 dark:from-theme-blue-900 dark:to-theme-blue-800;
+  }
+
+  .gradient-bg-teal {
+    @apply bg-gradient-to-br from-theme-teal-50 to-theme-teal-100 dark:from-theme-teal-900 dark:to-theme-teal-800;
+  }
+
+  .gradient-bg-amber {
+    @apply bg-gradient-to-br from-theme-amber-50 to-theme-amber-100 dark:from-theme-amber-900 dark:to-theme-amber-800;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-theme-blue-600 to-theme-teal-600;
+  }
+
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-sm dark:bg-black/50;
+  }
+}
+
+/* Animations personnalisées */
+.animate-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animate-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animate-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animate-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animate-delay-500 {
+  animation-delay: 500ms;
+}
+
+/* Effet de survol pour les cartes */
+.hover-card-effect {
+  transition: all 0.3s ease;
+}
+
+.hover-card-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Effet de survol pour les boutons */
+.hover-button-effect {
+  transition: all 0.2s ease;
+}
+
+.hover-button-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hover-button-effect:active {
+  transform: translateY(0);
+}
+
+/* Effet de focus pour les inputs */
+.focus-input-effect {
+  transition: all 0.2s ease;
+}
+
+.focus-input-effect:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Ajouter ces optimisations en bas du fichier */
+
+/* Optimisations de performance */
+* {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Réduire la complexité des animations */
+.button-hover-effect {
+  transition: all 0.15s ease; /* Réduit de 0.2s à 0.15s */
+}
+
+.button-hover-effect:hover {
+  transform: translateY(-1px); /* Réduit de -2px à -1px */
+}
+
+.card-hover-effect {
+  transition: all 0.2s ease; /* Réduit de 0.3s à 0.2s */
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-3px); /* Réduit de -5px à -3px */
+}
+
+/* Optimiser les animations de Tailwind */
+@layer utilities {
+  .animate-faster {
+    animation-duration: 0.3s;
+  }
+}
+
+/* Optimiser les animations de secousse */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25%,
+  75% {
+    transform: translateX(-3px);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+.animate-shake {
+  animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}

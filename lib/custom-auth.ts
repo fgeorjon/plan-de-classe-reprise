@@ -1,12 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
 
-// Simple password hashing (matches SQL function)
-// In production, use bcrypt or similar
-function hashPassword(password: string): string {
-  // This is a placeholder - the actual hashing happens in SQL
-  return password
-}
-
 export interface AuthUser {
   id: string
   username: string
@@ -23,236 +16,240 @@ export async function authenticateUser(
   establishmentCode: string,
   role: string,
   username: string,
-  password: string,
+  password: string
 ): Promise<{ user: AuthUser | null; error: string | null }> {
   const supabase = createClient()
 
   try {
-    console.log("[v0] Authenticating user:", { establishmentCode, role, username })
+    console.log("[Auth] Authenticating user:", { establishmentCode, role, username })
 
-    // First, verify the establishment code exists
+    // Vérifier que le code établissement existe
     const { data: establishment, error: estError } = await supabase
       .from("establishments")
       .select("id, code, name")
       .eq("code", establishmentCode)
       .single()
 
-    console.log("[v0] Establishment lookup:", { establishment, estError })
-    if (estError) {
-      console.error("[v0] Establishment error details:", {
-        message: estError.message,
-        details: estError.details,
-        hint: estError.hint,
-        code: estError.code,
-      })
-    }
+    console.log("[Auth] Establishment lookup:", { establishment, estError })
 
     if (estError || !establishment) {
+      console.error("[Auth] Establishment error:", estError)
       return { user: null, error: "Code établissement invalide" }
     }
 
-    // Check based on role
+    // Authentification selon le rôle
     if (role === "vie-scolaire") {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username)
-        .eq("establishment_id", establishment.id)
-        .eq("role", "vie-scolaire")
-        .single()
-
-      console.log("[v0] Profile lookup:", { profile, profileError })
-      if (profileError) {
-        console.error("[v0] Profile error details:", {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code,
-        })
-      }
-
-      if (profileError || !profile) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      // Verify password using SQL function
-      const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
-        password: password,
-        password_hash: profile.password_hash,
-      })
-
-      console.log("[v0] Password verification:", { isValid, verifyError })
-      if (verifyError) {
-        console.error("[v0] Verify error details:", {
-          message: verifyError.message,
-          details: verifyError.details,
-          hint: verifyError.hint,
-          code: verifyError.code,
-        })
-      }
-
-      if (verifyError || !isValid) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      return {
-        user: {
-          id: profile.id,
-          username: profile.username,
-          role: "vie-scolaire",
-          establishment_id: establishment.id,
-          establishment_code: establishment.code,
-          establishment_name: establishment.name,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          email: profile.email,
-        },
-        error: null,
-      }
+      return authenticateVieScolaire(supabase, establishment, username, password)
     } else if (role === "professeur") {
-      const { data: teacher, error: teacherError } = await supabase
-        .from("teachers")
-        .select("*")
-        .eq("username", username)
-        .eq("establishment_id", establishment.id)
-        .single()
-
-      console.log("[v0] Teacher lookup:", { teacher, teacherError })
-      if (teacherError) {
-        console.error("[v0] Teacher error details:", {
-          message: teacherError.message,
-          details: teacherError.details,
-          hint: teacherError.hint,
-          code: teacherError.code,
-        })
-      }
-
-      if (teacherError || !teacher) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
-        password: password,
-        password_hash: teacher.password_hash,
-      })
-
-      console.log("[v0] Password verification:", { isValid, verifyError })
-      if (verifyError) {
-        console.error("[v0] Verify error details:", {
-          message: verifyError.message,
-          details: verifyError.details,
-          hint: verifyError.hint,
-          code: verifyError.code,
-        })
-      }
-
-      if (verifyError || !isValid) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      return {
-        user: {
-          id: teacher.id,
-          username: teacher.username,
-          role: "professeur",
-          establishment_id: establishment.id,
-          establishment_code: establishment.code,
-          establishment_name: establishment.name,
-          first_name: teacher.first_name,
-          last_name: teacher.last_name,
-          email: teacher.email,
-        },
-        error: null,
-      }
+      return authenticateProfesseur(supabase, establishment, username, password)
     } else if (role === "delegue") {
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select("*")
-        .eq("username", username)
-        .eq("establishment_id", establishment.id)
-        .single()
-
-      console.log("[v0] Student lookup:", { student, studentError })
-      if (studentError) {
-        console.error("[v0] Student error details:", {
-          message: studentError.message,
-          details: studentError.details,
-          hint: studentError.hint,
-          code: studentError.code,
-        })
-      }
-
-      if (studentError || !student) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
-        password: password,
-        password_hash: student.password_hash,
-      })
-
-      console.log("[v0] Password verification:", { isValid, verifyError })
-      if (verifyError) {
-        console.error("[v0] Verify error details:", {
-          message: verifyError.message,
-          details: verifyError.details,
-          hint: verifyError.hint,
-          code: verifyError.code,
-        })
-      }
-
-      if (verifyError || !isValid) {
-        return { user: null, error: "Identifiant ou mot de passe incorrect" }
-      }
-
-      return {
-        user: {
-          id: student.id,
-          username: student.username,
-          role: "delegue",
-          establishment_id: establishment.id,
-          establishment_code: establishment.code,
-          establishment_name: establishment.name,
-          first_name: student.first_name,
-          last_name: student.last_name,
-          email: student.email,
-        },
-        error: null,
-      }
+      return authenticateDelegue(supabase, establishment, username, password)
     }
 
     return { user: null, error: "Rôle invalide" }
   } catch (error) {
-    console.error("[v0] Authentication error:", error)
+    console.error("[Auth] Authentication error:", error)
     return { user: null, error: "Erreur de connexion - vérifiez votre configuration Supabase" }
   }
 }
 
-export function setUserSession(user: AuthUser) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("custom_auth_user", JSON.stringify(user))
-    // Also set a cookie for server-side access
-    document.cookie = `custom_auth_user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+async function authenticateVieScolaire(
+  supabase: ReturnType<typeof createClient>,
+  establishment: { id: string; code: string; name: string },
+  username: string,
+  password: string
+): Promise<{ user: AuthUser | null; error: string | null }> {
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", username)
+    .eq("establishment_id", establishment.id)
+    .eq("role", "vie-scolaire")
+    .single()
+
+  console.log("[Auth] Profile lookup:", { profile: profile ? "found" : "not found", profileError })
+
+  if (profileError || !profile) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
   }
+
+  // Vérifier le mot de passe via fonction SQL
+  const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
+    password: password,
+    password_hash: profile.password_hash,
+  })
+
+  console.log("[Auth] Password verification:", { isValid, verifyError })
+
+  if (verifyError || !isValid) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
+  }
+
+  return {
+    user: {
+      id: profile.id,
+      username: profile.username,
+      role: "vie-scolaire",
+      establishment_id: establishment.id,
+      establishment_code: establishment.code,
+      establishment_name: establishment.name,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      email: profile.email,
+    },
+    error: null,
+  }
+}
+
+async function authenticateProfesseur(
+  supabase: ReturnType<typeof createClient>,
+  establishment: { id: string; code: string; name: string },
+  username: string,
+  password: string
+): Promise<{ user: AuthUser | null; error: string | null }> {
+  const { data: teacher, error: teacherError } = await supabase
+    .from("teachers")
+    .select("*")
+    .eq("username", username)
+    .eq("establishment_id", establishment.id)
+    .single()
+
+  console.log("[Auth] Teacher lookup:", { teacher: teacher ? "found" : "not found", teacherError })
+
+  if (teacherError || !teacher) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
+  }
+
+  const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
+    password: password,
+    password_hash: teacher.password_hash,
+  })
+
+  if (verifyError || !isValid) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
+  }
+
+  return {
+    user: {
+      id: teacher.id,
+      username: teacher.username,
+      role: "professeur",
+      establishment_id: establishment.id,
+      establishment_code: establishment.code,
+      establishment_name: establishment.name,
+      first_name: teacher.first_name,
+      last_name: teacher.last_name,
+      email: teacher.email,
+    },
+    error: null,
+  }
+}
+
+async function authenticateDelegue(
+  supabase: ReturnType<typeof createClient>,
+  establishment: { id: string; code: string; name: string },
+  username: string,
+  password: string
+): Promise<{ user: AuthUser | null; error: string | null }> {
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("*")
+    .eq("username", username)
+    .eq("establishment_id", establishment.id)
+    .single()
+
+  console.log("[Auth] Student lookup:", { student: student ? "found" : "not found", studentError })
+
+  if (studentError || !student) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
+  }
+
+  const { data: isValid, error: verifyError } = await supabase.rpc("verify_password", {
+    password: password,
+    password_hash: student.password_hash,
+  })
+
+  if (verifyError || !isValid) {
+    return { user: null, error: "Identifiant ou mot de passe incorrect" }
+  }
+
+  return {
+    user: {
+      id: student.id,
+      username: student.username,
+      role: "delegue",
+      establishment_id: establishment.id,
+      establishment_code: establishment.code,
+      establishment_name: establishment.name,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      email: student.email,
+    },
+    error: null,
+  }
+}
+
+// Nom de la clé de session (unifié)
+const SESSION_KEY = "custom_auth_user"
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 // 7 jours en secondes
+
+export function setUserSession(user: AuthUser): void {
+  if (typeof window === "undefined") return
+
+  const userJson = JSON.stringify(user)
+
+  // Stocker dans localStorage
+  localStorage.setItem(SESSION_KEY, userJson)
+
+  // Stocker dans un cookie pour accès serveur
+  document.cookie = `${SESSION_KEY}=${encodeURIComponent(userJson)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`
+
+  console.log("[Auth] Session stored for user:", user.username)
 }
 
 export function getUserSession(): AuthUser | null {
-  if (typeof window !== "undefined") {
-    const userStr = localStorage.getItem("custom_auth_user")
-    if (userStr) {
-      try {
-        return JSON.parse(userStr)
-      } catch {
-        return null
-      }
+  if (typeof window === "undefined") return null
+
+  // Essayer d'abord localStorage
+  const userStr = localStorage.getItem(SESSION_KEY)
+  if (userStr) {
+    try {
+      return JSON.parse(userStr)
+    } catch {
+      console.error("[Auth] Error parsing localStorage session")
     }
   }
+
+  // Fallback sur le cookie
+  const cookieValue = getCookieValue(SESSION_KEY)
+  if (cookieValue) {
+    try {
+      return JSON.parse(decodeURIComponent(cookieValue))
+    } catch {
+      console.error("[Auth] Error parsing cookie session")
+    }
+  }
+
   return null
 }
 
-export function clearUserSession() {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("custom_auth_user")
-    document.cookie = "custom_auth_user=; path=/; max-age=0"
-  }
+export function clearUserSession(): void {
+  if (typeof window === "undefined") return
+
+  // Supprimer de localStorage
+  localStorage.removeItem(SESSION_KEY)
+
+  // Supprimer le cookie
+  document.cookie = `${SESSION_KEY}=; path=/; max-age=0`
+
+  // Nettoyer aussi l'ancien nom de clé si existant
+  localStorage.removeItem("user_session")
+
+  console.log("[Auth] Session cleared")
+}
+
+// Helper pour lire un cookie
+function getCookieValue(name: string): string | null {
+  const matches = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return matches ? matches[1] : null
 }

@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 
 export default async function Home() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (user) {
+  const cookieStore = await cookies()
+  
+  // Vérifier l'authentification custom (prioritaire)
+  const customAuthCookie = cookieStore.get("custom_auth_user")
+  const adminSessionCookie = cookieStore.get("admin_session")
+  
+  // Si l'utilisateur est authentifié via custom auth ou admin
+  if (customAuthCookie || adminSessionCookie) {
     redirect("/dashboard")
-  } else {
-    redirect("/auth/login")
   }
+  
+  // Sinon, rediriger vers la page de connexion
+  redirect("/auth/login")
 }

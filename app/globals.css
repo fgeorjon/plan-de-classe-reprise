@@ -33,6 +33,24 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.75rem;
+
+    /* Couleurs du thème personnalisé */
+    --theme-blue-50: 214 100% 97%;
+    --theme-blue-100: 214 95% 93%;
+    --theme-blue-600: 217 91% 60%;
+    --theme-blue-800: 217 91% 30%;
+    --theme-blue-900: 217 91% 20%;
+    
+    --theme-teal-50: 166 76% 97%;
+    --theme-teal-100: 166 76% 93%;
+    --theme-teal-600: 173 80% 40%;
+    --theme-teal-800: 173 80% 25%;
+    --theme-teal-900: 173 80% 15%;
+    
+    --theme-amber-50: 48 96% 97%;
+    --theme-amber-100: 48 96% 89%;
+    --theme-amber-800: 25 95% 40%;
+    --theme-amber-900: 25 95% 30%;
   }
 
   .dark {
@@ -77,77 +95,134 @@
 }
 
 @layer components {
+  /* Effets de survol pour les cartes */
   .card-hover-effect {
-    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1;
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
   }
 
+  /* Effets de survol pour les boutons */
   .button-hover-effect {
-    @apply transition-all duration-200 hover:shadow-md active:scale-95;
+    @apply transition-all duration-150 hover:shadow-md active:scale-95;
   }
 
+  /* Effets de focus pour les inputs */
   .input-focus-effect {
     @apply transition-all duration-200 focus:ring-2 focus:ring-primary/50 focus:border-primary;
   }
 
+  /* Gradients avec couleurs CSS variables */
   .gradient-bg-blue {
-    @apply bg-gradient-to-br from-theme-blue-50 to-theme-blue-100 dark:from-theme-blue-900 dark:to-theme-blue-800;
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-blue-50)),
+      hsl(var(--theme-blue-100))
+    );
+  }
+  
+  .dark .gradient-bg-blue {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-blue-900)),
+      hsl(var(--theme-blue-800))
+    );
   }
 
   .gradient-bg-teal {
-    @apply bg-gradient-to-br from-theme-teal-50 to-theme-teal-100 dark:from-theme-teal-900 dark:to-theme-teal-800;
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-teal-50)),
+      hsl(var(--theme-teal-100))
+    );
+  }
+  
+  .dark .gradient-bg-teal {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-teal-900)),
+      hsl(var(--theme-teal-800))
+    );
   }
 
   .gradient-bg-amber {
-    @apply bg-gradient-to-br from-theme-amber-50 to-theme-amber-100 dark:from-theme-amber-900 dark:to-theme-amber-800;
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-amber-50)),
+      hsl(var(--theme-amber-100))
+    );
+  }
+  
+  .dark .gradient-bg-amber {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--theme-amber-900)),
+      hsl(var(--theme-amber-800))
+    );
   }
 
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-theme-blue-600 to-theme-teal-600;
+    background: linear-gradient(
+      to right,
+      hsl(var(--theme-blue-600)),
+      hsl(var(--theme-teal-600))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .glass-effect {
-    @apply bg-white/80 backdrop-blur-sm dark:bg-black/50;
+    @apply bg-white/80 backdrop-blur-sm;
+  }
+  
+  .dark .glass-effect {
+    @apply bg-black/50;
   }
 }
 
 /* Animations personnalisées */
-.animate-delay-100 {
-  animation-delay: 100ms;
+@layer utilities {
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-faster {
+    animation-duration: 0.3s;
+  }
 }
 
-.animate-delay-200 {
-  animation-delay: 200ms;
-}
-
-.animate-delay-300 {
-  animation-delay: 300ms;
-}
-
-.animate-delay-400 {
-  animation-delay: 400ms;
-}
-
-.animate-delay-500 {
-  animation-delay: 500ms;
-}
-
-/* Effet de survol pour les cartes */
+/* Effet de survol pour les cartes (CSS pur) */
 .hover-card-effect {
-  transition: all 0.3s ease;
-}
-
-.hover-card-effect:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-/* Effet de survol pour les boutons */
-.hover-button-effect {
   transition: all 0.2s ease;
 }
 
+.hover-card-effect:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Effet de survol pour les boutons (CSS pur) */
+.hover-button-effect {
+  transition: all 0.15s ease;
+}
+
 .hover-button-effect:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -155,7 +230,7 @@
   transform: translateY(0);
 }
 
-/* Effet de focus pour les inputs */
+/* Effet de focus pour les inputs (CSS pur) */
 .focus-input-effect {
   transition: all 0.2s ease;
 }
@@ -164,39 +239,7 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
-/* Ajouter ces optimisations en bas du fichier */
-
-/* Optimisations de performance */
-* {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-/* Réduire la complexité des animations */
-.button-hover-effect {
-  transition: all 0.15s ease; /* Réduit de 0.2s à 0.15s */
-}
-
-.button-hover-effect:hover {
-  transform: translateY(-1px); /* Réduit de -2px à -1px */
-}
-
-.card-hover-effect {
-  transition: all 0.2s ease; /* Réduit de 0.3s à 0.2s */
-}
-
-.card-hover-effect:hover {
-  transform: translateY(-3px); /* Réduit de -5px à -3px */
-}
-
-/* Optimiser les animations de Tailwind */
-@layer utilities {
-  .animate-faster {
-    animation-duration: 0.3s;
-  }
-}
-
-/* Optimiser les animations de secousse */
+/* Animation de secousse */
 @keyframes shake {
   0%,
   100% {
@@ -210,6 +253,15 @@
     transform: translateX(3px);
   }
 }
+
 .animate-shake {
   animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Optimisations de performance */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
 }
