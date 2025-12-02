@@ -4,6 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
+node_modules/
+.pnpm-store/
 
 # testing
 /coverage
@@ -27,6 +29,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.*.local
 
 # vercel
 .vercel
@@ -34,3 +37,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
