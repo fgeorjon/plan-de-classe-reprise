@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-import { LogOut, Users, BookOpen, SettingsIcon, Key, LayoutGrid } from "lucide-react"
+import { LogOut, Users, BookOpen, SettingsIcon, Key, LayoutGrid, History, Archive } from "lucide-react"
 import { motion } from "framer-motion"
 import type { User } from "@supabase/supabase-js"
 import type { Profile } from "@/lib/types"
@@ -28,6 +28,9 @@ import { TeachersManagement } from "@/components/teachers-management"
 import { ClassesManagement } from "@/components/classes-management"
 import { RoomsManagement } from "@/components/rooms-management"
 import { SeatingPlanManagement } from "@/components/seating-plan-management"
+// Nouveaux imports pour historique et archivage
+import { AuditLogViewer } from "@/components/audit-log-viewer"
+import { ArchivedSubRoomsManager } from "@/components/archived-subrooms-manager"
 
 interface DashboardContentProps {
   user: User
@@ -37,8 +40,9 @@ interface DashboardContentProps {
 export function DashboardContent({ user, profile }: DashboardContentProps) {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  // Ajout de "history" et "archives" aux sections disponibles
   const [activeSection, setActiveSection] = useState<
-    "home" | "students" | "teachers" | "classes" | "rooms" | "seating-plan"
+    "home" | "students" | "teachers" | "classes" | "rooms" | "seating-plan" | "history" | "archives"
   >("home")
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsData, setSettingsData] = useState({
@@ -213,6 +217,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
   const color = getUserTypeColor()
 
+  // Section Students
   if (activeSection === "students") {
     return (
       <StudentsManagement
@@ -224,6 +229,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     )
   }
 
+  // Section Teachers
   if (activeSection === "teachers") {
     return (
       <TeachersManagement
@@ -235,10 +241,12 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     )
   }
 
+  // Section Classes
   if (activeSection === "classes") {
     return <ClassesManagement establishmentId={profile.establishment_id} onBack={() => setActiveSection("home")} />
   }
 
+  // Section Rooms
   if (activeSection === "rooms") {
     return (
       <RoomsManagement
@@ -250,6 +258,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     )
   }
 
+  // Section Seating Plan
   if (activeSection === "seating-plan") {
     return (
       <SeatingPlanManagement
@@ -258,6 +267,45 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
         userId={profile.id}
         onBack={() => setActiveSection("home")}
       />
+    )
+  }
+
+  // Section Historique (vie-scolaire uniquement)
+  if (activeSection === "history") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="container mx-auto p-6 max-w-7xl">
+          <div className="mb-6">
+            <Button variant="outline" onClick={() => setActiveSection("home")}>
+              ← Retour au tableau de bord
+            </Button>
+          </div>
+          <AuditLogViewer 
+            establishmentId={profile.establishment_id}
+            showFilters={true}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Section Archives (vie-scolaire uniquement)
+  if (activeSection === "archives") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="container mx-auto p-6 max-w-7xl">
+          <div className="mb-6">
+            <Button variant="outline" onClick={() => setActiveSection("home")}>
+              ← Retour au tableau de bord
+            </Button>
+          </div>
+          <ArchivedSubRoomsManager
+            userId={profile.id}
+            userRole={profile.role}
+            establishmentId={profile.establishment_id}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -314,7 +362,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
             <>
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-purple-300 dark:hover:border-purple-600"
-                onClick={() => router.push("/dashboard/classes")}
+                onClick={() => setActiveSection("classes")}
               >
                 <CardHeader className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -332,7 +380,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-blue-300 dark:hover:border-blue-600"
-                onClick={() => router.push("/dashboard/students")}
+                onClick={() => setActiveSection("students")}
               >
                 <CardHeader className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -350,7 +398,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-teal-300 dark:hover:border-teal-600"
-                onClick={() => router.push("/dashboard/teachers")}
+                onClick={() => setActiveSection("teachers")}
               >
                 <CardHeader className="bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -368,7 +416,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => setActiveSection("rooms")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -386,7 +434,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-indigo-300 dark:hover:border-indigo-600"
-                onClick={() => router.push("/dashboard/seating-plan")}
+                onClick={() => setActiveSection("seating-plan")}
               >
                 <CardHeader className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -401,6 +449,44 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
                   </p>
                 </CardContent>
               </Card>
+
+              {/* NOUVELLE CARTE : Historique */}
+              <Card
+                className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-rose-300 dark:hover:border-rose-600"
+                onClick={() => setActiveSection("history")}
+              >
+                <CardHeader className="bg-gradient-to-br from-rose-500 to-pink-600 text-white rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl">
+                    <History className="mr-3 h-6 w-6" />
+                    Historique
+                  </CardTitle>
+                  <CardDescription className="text-rose-100">Voir les modifications</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Consultez l'historique de toutes les modifications effectuées.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* NOUVELLE CARTE : Archives */}
+              <Card
+                className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-slate-300 dark:hover:border-slate-600"
+                onClick={() => setActiveSection("archives")}
+              >
+                <CardHeader className="bg-gradient-to-br from-slate-500 to-slate-700 text-white rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl">
+                    <Archive className="mr-3 h-6 w-6" />
+                    Archives
+                  </CardTitle>
+                  <CardDescription className="text-slate-200">Sous-salles archivées</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Gérez les sous-salles archivées et restaurez-les si nécessaire.
+                  </p>
+                </CardContent>
+              </Card>
             </>
           )}
 
@@ -408,7 +494,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
             <>
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-blue-300 dark:hover:border-blue-600"
-                onClick={() => router.push("/dashboard/students")}
+                onClick={() => setActiveSection("students")}
               >
                 <CardHeader className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -426,7 +512,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-teal-300 dark:hover:border-teal-600"
-                onClick={() => router.push("/dashboard/teachers")}
+                onClick={() => setActiveSection("teachers")}
               >
                 <CardHeader className="bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -444,7 +530,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => setActiveSection("rooms")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -462,7 +548,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-indigo-300 dark:hover:border-indigo-600"
-                onClick={() => router.push("/dashboard/seating-plan")}
+                onClick={() => setActiveSection("seating-plan")}
               >
                 <CardHeader className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -484,7 +570,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
             <>
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-blue-300 dark:hover:border-blue-600"
-                onClick={() => router.push("/dashboard/students")}
+                onClick={() => setActiveSection("students")}
               >
                 <CardHeader className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -502,7 +588,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-teal-300 dark:hover:border-teal-600"
-                onClick={() => router.push("/dashboard/teachers")}
+                onClick={() => setActiveSection("teachers")}
               >
                 <CardHeader className="bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -518,7 +604,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => setActiveSection("rooms")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
@@ -536,7 +622,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-indigo-300 dark:hover:border-indigo-600"
-                onClick={() => router.push("/dashboard/seating-plan")}
+                onClick={() => setActiveSection("seating-plan")}
               >
                 <CardHeader className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
