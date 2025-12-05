@@ -289,7 +289,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
           class_ids: formData.classIds,
           is_multi_class: formData.isMultiClass,
           created_by: userId,
-          type: "indeterminate",
+          type: "indefinite",
         })
         .select()
         .single()
