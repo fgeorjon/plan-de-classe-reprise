@@ -288,6 +288,17 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
 
       const subRoomName = `${selectedRoom.name} ${classNames} ${teacherName}`
 
+      // Pour les professeurs, userId est le teacher.id, mais created_by exige profiles.id
+      // On doit utiliser le profile_id du teacher actuel
+      let createdByProfileId = userId
+      if (userRole === "professeur") {
+        // Chercher le teacher actuel pour obtenir son profile_id
+        const currentTeacher = teachers.find((t) => t.id === userId)
+        if (currentTeacher?.profile_id) {
+          createdByProfileId = currentTeacher.profile_id
+        }
+      }
+
       const { data, error } = await supabase
         .from("sub_rooms")
         .insert({
@@ -298,7 +309,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
           teacher_id: formData.teacherId,
           class_ids: formData.classIds,
           is_multi_class: formData.isMultiClass,
-          created_by: userId,
+          created_by: createdByProfileId,
           type: "permanent",
         })
         .select()
