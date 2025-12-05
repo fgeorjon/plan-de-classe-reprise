@@ -174,11 +174,14 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
 
   const setAvailableOptions = async (supabase: any, teachersData: Teacher[], classesData: Class[]) => {
     if (userRole === "professeur") {
+      // Pour l'instant, montrer tous les professeurs
+      // TODO: Restreindre quand les profile_id seront tous liés
+      setAvailableTeachers(teachersData)
+
+      // Chercher les classes du professeur via teacher_classes
       // D'abord trouver le teacher correspondant au profile_id
       const myTeacher = teachersData.find((t) => t.profile_id === userId)
-      setAvailableTeachers(myTeacher ? [myTeacher] : [])
-
-      // Ensuite chercher les classes avec le teacher.id (pas profile.id)
+      
       if (myTeacher) {
         const { data: teacherClasses } = await supabase
           .from("teacher_classes")
@@ -186,9 +189,10 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
           .eq("teacher_id", myTeacher.id)
 
         const myClasses = teacherClasses?.map((tc: any) => tc.classes).filter(Boolean) || []
-        setAvailableClasses(myClasses)
+        setAvailableClasses(myClasses.length > 0 ? myClasses : classesData)
       } else {
-        setAvailableClasses([])
+        // Si pas de liaison profile_id, montrer toutes les classes
+        setAvailableClasses(classesData)
       }
     } else if (userRole === "delegue" || userRole === "eco-delegue") {
       const { data: studentData } = await supabase.from("students").select("class_id").eq("id", userId).single()
