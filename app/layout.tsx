@@ -1,46 +1,22 @@
 import type React from "react"
-import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-geist",
-  display: "swap",
-})
+const inter = Inter({ subsets: ["latin"], variable: "--font-geist" })
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-  display: "swap",
-})
-
-export const metadata: Metadata = {
-  title: {
-    default: "Plan de Classe",
-    template: "%s | Plan de Classe",
-  },
-  description: "Système de gestion des plans de classe pour établissements scolaires",
-  generator: "Next.js",
-  applicationName: "Plan de Classe",
-  keywords: ["plan de classe", "salle de classe", "gestion scolaire", "placement élèves"],
-  authors: [{ name: "Votre Établissement" }],
-  robots: {
-    index: false,
-    follow: false,
-  },
+export const metadata = {
+  title: "Classroom Seating",
+  description: "Seating plan management system",
+    generator: 'v0.app'
 }
 
-export const viewport: Viewport = {
+export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   userScalable: false,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  themeColor: "#ffffff",
 }
 
 export default function RootLayout({
@@ -49,12 +25,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="fr"
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
-      suppressHydrationWarning
-    >
-      <body className="font-sans antialiased min-h-screen bg-background">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body className={`font-sans antialiased`}>
         {children}
         <Analytics />
       </body>

@@ -21,35 +21,38 @@ export function LoginForm() {
   const [showConfetti, setShowConfetti] = useState<boolean>(false)
   const [loginSuccess, setLoginSuccess] = useState<boolean>(false)
 
+  // Remplacer la fonction handleLogin par celle-ci pour optimiser les délais et les animations
   const handleLogin = () => {
     if (loading || loginSuccess) return
 
     setLoading(true)
 
-    // Codes d'accès admin (hardcodés - voir admin-auth.ts pour la vraie auth)
+    // Vérification des codes d'accès
     const validCodes: Record<string, string> = {
       delegue: "cpdc001",
       prof: "cpdc002",
       vieScolaire: "cpdc003",
     }
 
-    // Délai court pour l'UX
+    // Simuler un délai de vérification plus court
     setTimeout(() => {
       if (accessCode === validCodes[userType]) {
-        // Note: La vraie session est gérée par admin-auth.ts ou custom-auth.ts
-        // Ce formulaire est juste pour la démo avec les codes hardcodés
-        
+        // Stocker les informations de connexion dans localStorage
+        localStorage.setItem("userType", userType)
+        localStorage.setItem("isLoggedIn", "true")
+
+        // Afficher le succès
         setLoginSuccess(true)
 
-        // Confettis après un court délai
+        // Délai court avant de lancer les confettis
         setTimeout(() => {
           setShowConfetti(true)
         }, 200)
 
-        // Redirection vers le dashboard
+        // Rediriger vers le tableau de bord après un délai court
         setTimeout(() => {
           router.push("/dashboard")
-        }, 1000)
+        }, 1000) // Réduit de 2000ms à 1000ms
 
         toast({
           title: "Connexion réussie",
@@ -63,19 +66,19 @@ export function LoginForm() {
           variant: "destructive",
         })
 
-        // Animation de secousse
+        // Animation de secousse pour l'input
         const input = document.getElementById("accessCode")
         if (input) {
           input.classList.add("animate-shake")
           setTimeout(() => {
             input.classList.remove("animate-shake")
-          }, 300)
+          }, 300) // Réduit de 500ms à 300ms
         }
       }
-    }, 300)
+    }, 300) // Réduit de 600ms à 300ms
   }
 
-  // Nettoyage au démontage
+  // Nettoyer les états lors du démontage
   useEffect(() => {
     return () => {
       setShowConfetti(false)

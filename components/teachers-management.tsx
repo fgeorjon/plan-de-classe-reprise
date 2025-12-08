@@ -58,7 +58,7 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
     email: "",
     subject: "",
     classes: [] as string[],
-    allow_delegate_subrooms: true, // Défaut TRUE selon spec 4.1.1
+    allow_delegate_subrooms: false, // Added allow_delegate_subrooms state
   })
 
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([])
@@ -302,7 +302,7 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
         email: "",
         subject: "",
         classes: [],
-        allow_delegate_subrooms: true, // Reset avec défaut TRUE
+        allow_delegate_subrooms: false, // Reset allow_delegate_subrooms
       })
 
       setIsPrincipal(false)
@@ -385,7 +385,7 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
         email: "",
         subject: "",
         classes: [],
-        allow_delegate_subrooms: true, // Reset avec défaut TRUE
+        allow_delegate_subrooms: false, // Reset allow_delegate_subrooms
       })
       setIsPrincipal(false)
       setPrincipalClassId("")
@@ -506,6 +506,15 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
   const handleUpdateCredentials = async () => {
     if (!selectedTeacher) return
 
+    if (!selectedTeacher.profile_id) {
+      toast({
+        title: "Erreur",
+        description: "Ce professeur n'a pas de profil utilisateur",
+        variant: "destructive",
+      })
+      return
+    }
+
     const supabase = createClient()
     if (accessData.password !== "••••••••" && accessData.password !== "") {
       const { data: hashedPassword, error: hashError } = await supabase.rpc("hash_password", {
@@ -564,6 +573,7 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
       description: "Identifiants mis à jour avec succès",
     })
     setIsAccessDialogOpen(false)
+    fetchData() // Rafraîchir les données après la mise à jour
   }
 
   const handleSendEmail = () => {

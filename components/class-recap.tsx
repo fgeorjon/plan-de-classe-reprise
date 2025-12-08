@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, LayoutGrid, FileText, CheckSquare } from "lucide-react"
 import { useShare } from "@/components/providers/share-provider"
@@ -15,45 +14,35 @@ interface ClassRecapProps {
 
 export function ClassRecap({ classData }: ClassRecapProps) {
   const { shareData } = useShare()
-  
-  // État pour stocker les données des assignments chargées depuis localStorage
-  // Chargées dans useEffect pour éviter les erreurs d'hydratation SSR
-  const [assignmentsData, setAssignmentsData] = useState<Record<string, Record<string, any>>>({})
 
-  // Charger les données localStorage dans useEffect (côté client uniquement)
-  useEffect(() => {
-    const loadAssignments = () => {
-      const assignments: Record<string, Record<string, any>> = {}
-      const storageKey = `seatAssignments_${shareData?.classCode || ""}`
-      
+  // Modifier la fonction calculateAssignedSeats pour qu'elle compte correctement les places occupées
+  // Remplacer la fonction calculateAssignedSeats par :
+
+  const calculateAssignedSeats = () => {
+    let totalAssigned = 0
+
+    // Pour chaque salle, récupérer les attributions et compter le nombre d'élèves placés
+    classData.rooms.forEach((room) => {
       try {
+        const storageKey = `seatAssignments_${shareData?.classCode || ""}`
         const savedData = localStorage.getItem(storageKey)
         if (savedData) {
           const allAssignments = JSON.parse(savedData)
-          classData.rooms.forEach((room) => {
-            if (allAssignments && allAssignments[room.id]) {
-              assignments[room.id] = allAssignments[room.id]
-            }
-          })
+          if (allAssignments && allAssignments[room.id]) {
+            totalAssigned += Object.keys(allAssignments[room.id]).length
+          }
         }
       } catch (e) {
-        console.error("Erreur lors du chargement des assignments:", e)
+        console.error("Erreur lors du calcul des places attribuées:", e)
       }
-      
-      setAssignmentsData(assignments)
-    }
-    
-    loadAssignments()
-  }, [classData.rooms, shareData?.classCode])
-
-  // Calculer le nombre de places assignées à partir de l'état
-  const calculateAssignedSeats = () => {
-    let totalAssigned = 0
-    Object.values(assignmentsData).forEach((roomAssignments) => {
-      totalAssigned += Object.keys(roomAssignments).length
     })
+
     return totalAssigned
   }
+
+  const totalStudents = classData.students.length
+  const totalRooms = classData.rooms.length
+  const totalPlans = calculateAssignedSeats()
 
   // Calculer le nombre total de places disponibles
   const calculateTotalSeats = () => {
@@ -66,9 +55,6 @@ export function ClassRecap({ classData }: ClassRecapProps) {
     return total
   }
 
-  const totalStudents = classData.students.length
-  const totalRooms = classData.rooms.length
-  const totalPlans = calculateAssignedSeats()
   const totalSeats = calculateTotalSeats()
 
   return (
@@ -111,7 +97,7 @@ export function ClassRecap({ classData }: ClassRecapProps) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600 dark:text-green-300">{totalPlans}</div>
-            <p className="text-sm text-muted-foreground mt-1">Places attribuées</p>
+            <p className="text-sm text-muted-foreground mt-1">Plans de classe</p>
           </CardContent>
         </Card>
 
@@ -141,10 +127,20 @@ export function ClassRecap({ classData }: ClassRecapProps) {
             ) : (
               <div className="space-y-4">
                 {classData.rooms.map((room) => {
-                  // Utiliser l'état au lieu de localStorage direct
-                  const occupiedSeats = assignmentsData[room.id] 
-                    ? Object.keys(assignmentsData[room.id]).length 
-                    : 0
+                  // Calculer le nombre de places occupées dans cette salle
+                  let occupiedSeats = 0
+                  try {
+                    const storageKey = `seatAssignments_${shareData?.classCode || ""}`
+                    const savedData = localStorage.getItem(storageKey)
+                    if (savedData) {
+                      const allAssignments = JSON.parse(savedData)
+                      if (allAssignments && allAssignments[room.id]) {
+                        occupiedSeats = Object.keys(allAssignments[room.id]).length
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Erreur lors du calcul des places occupées:", e)
+                  }
 
                   // Calculer le nombre total de places dans cette salle
                   let totalRoomSeats = 0

@@ -1,46 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 
-// Lazy initialization - Resend n'est créé que lors de l'appel API
-let resend: Resend | null = null
-
-function getResendClient(): Resend {
-  if (!resend) {
-    const apiKey = process.env.RESEND_API_KEY
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY environment variable is not set")
-    }
-    resend = new Resend(apiKey)
-  }
-  return resend
-}
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
-  try {
-    // Vérifier que Resend est configuré
-    let resendClient: Resend
-    try {
-      resendClient = getResendClient()
-    } catch {
-      return NextResponse.json(
-        { error: "Email service not configured. Please set RESEND_API_KEY." },
-        { status: 503 }
-      )
-    }
+  console.log("[v0] Email API route called")
 
+  try {
     const body = await request.json()
+    console.log("[v0] Request body:", body)
+
     const { recipientEmail, recipientName, username, password, userType } = body
 
     // Validation
     if (!recipientEmail || !recipientName || !username || !password) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
+      console.error("[v0] Missing required fields:", { recipientEmail, recipientName, username, password })
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    console.log("[v0] Sending email to:", recipientEmail)
+
     // Send email using Resend
-    const { data, error } = await resendClient.emails.send({
+    const { data, error } = await resend.emails.send({
       from: "noreply@nerium-lnc.com",
       to: recipientEmail,
       subject: "Vos identifiants de connexion - EduPlan",
@@ -105,14 +86,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
+      console.error("[v0] Resend error:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log("[v0] Email sent successfully:", data)
     return NextResponse.json({ success: true, data })
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    )
+    console.error("[v0] Error in email API route:", error)
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 })
   }
 }

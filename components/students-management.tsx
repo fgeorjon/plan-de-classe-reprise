@@ -603,9 +603,18 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
     try {
       console.log("[v0] Promoting student:", student.id, "to role:", newRole)
 
+      if (student.profile_id) {
+        toast({
+          title: "Erreur",
+          description: "Cet élève a déjà un profil utilisateur",
+          variant: "destructive",
+        })
+        return
+      }
+
       const credentials = await createUser({
         establishment_id: establishmentId,
-        role: newRole,
+        role: "delegue",
         first_name: student.first_name,
         last_name: student.last_name,
         email: student.email || undefined,
@@ -618,35 +627,22 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
 
       const supabase = createClient()
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", credentials.username)
-        .single()
-
-      if (profileError || !profileData) {
-        console.error("[v0] Error fetching profile:", profileError)
-        throw new Error("Impossible de récupérer le profil créé")
-      }
-
-      console.log("[v0] Profile found:", profileData.id)
-
-      const { data: updateData, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from("students")
         .update({
           role: newRole,
-          profile_id: profileData.id,
+          profile_id: credentials.profile_id,
         })
         .eq("id", student.id)
-        .select()
 
       if (updateError) {
         console.error("[v0] Error updating student:", updateError)
-        console.error("[v0] Update error details:", JSON.stringify(updateError, null, 2))
+        // Supprimer le profil créé en cas d'erreur
+        await supabase.from("profiles").delete().eq("id", credentials.profile_id)
         throw updateError
       }
 
-      console.log("[v0] Student updated successfully:", updateData)
+      console.log("[v0] Student updated successfully")
 
       toast({
         title: "Élève promu avec succès",
@@ -748,6 +744,17 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
 
   async function handleUpdateCredentials() {
     if (!selectedStudent) return
+
+    if (!selectedStudent.profile_id) {
+      toast({
+        title: "Erreur",
+        description: "Cet élève n'a pas de profil utilisateur",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const supabase = createClient()
 
     if (accessData.password !== "••••••••" && accessData.password !== "") {
       const { data: hashedPassword, error: hashError } = await supabase.rpc("hash_password", {

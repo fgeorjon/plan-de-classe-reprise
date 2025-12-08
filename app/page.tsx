@@ -1,17 +1,15 @@
 import { redirect } from "next/navigation"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 
 export default async function Home() {
-  const cookieStore = await cookies()
-  
-  // Vérifier l'authentification via le cookie unifié
-  const userSessionCookie = cookieStore.get("user_session")
-  
-  // Si l'utilisateur est authentifié, rediriger vers le dashboard
-  if (userSessionCookie) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
     redirect("/dashboard")
+  } else {
+    redirect("/auth/login")
   }
-  
-  // Sinon, rediriger vers la page de connexion
-  redirect("/auth/login")
 }

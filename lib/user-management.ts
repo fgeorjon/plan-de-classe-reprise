@@ -50,6 +50,36 @@ function generatePassword(): string {
 }
 
 /**
+ * Génère un nom d'utilisateur unique basé sur le prénom, nom et classe
+ */
+function generateUsernameWithClass(firstName: string, lastName: string, className?: string): string {
+  const normalizedFirstName = firstName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z]/g, "")
+
+  const normalizedLastName = lastName
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z]/g, "")
+
+  let username = `${normalizedLastName}.${normalizedFirstName}`
+
+  // Ajouter la classe si fournie (format 6A au lieu de 6èmeA)
+  if (className) {
+    const normalizedClass = className
+      .replace(/ème|eme|ère|ere/gi, "")
+      .replace(/\s+/g, "")
+      .toUpperCase()
+    username += `.${normalizedClass}`
+  }
+
+  return username
+}
+
+/**
  * Crée un utilisateur complet (profile + student/teacher)
  */
 export async function createUser(params: CreateUserParams): Promise<UserCredentials> {
@@ -57,8 +87,17 @@ export async function createUser(params: CreateUserParams): Promise<UserCredenti
 
   console.log("[v0] Creating user with params:", params)
 
+  let className: string | undefined = undefined
+  if (params.class_id) {
+    const { data: classData } = await supabase.from("classes").select("name").eq("id", params.class_id).single()
+
+    if (classData) {
+      className = classData.name
+    }
+  }
+
   // 1. Générer username et password si non fournis
-  const username = params.username || generateUsername(params.first_name, params.last_name)
+  const username = params.username || generateUsernameWithClass(params.first_name, params.last_name, className)
   const password = params.password || generatePassword()
 
   // 2. Hasher le mot de passe côté serveur avec la fonction SQL
@@ -95,41 +134,8 @@ export async function createUser(params: CreateUserParams): Promise<UserCredenti
 
   // 4. Créer l'enregistrement spécifique selon le rôle
   if (params.role === "delegue" && params.class_id) {
-    const { data: classData, error: classError } = await supabase
-      .from("classes")
-      .select("name")
-      .eq("id", params.class_id)
-      .single()
-
-    if (classError) {
-      console.error("[v0] Error fetching class:", classError)
-      await supabase.from("profiles").delete().eq("id", profile.id)
-      throw new Error("Erreur lors de la récupération de la classe")
-    }
-
-    // Créer un élève
-    const { error: studentError } = await supabase.from("students").insert({
-      profile_id: profile.id,
-      establishment_id: params.establishment_id,
-      first_name: params.first_name,
-      last_name: params.last_name,
-      email: params.email,
-      phone: params.phone,
-      class_id: params.class_id,
-      class_name: classData.name, // Add class_name field
-      role: params.student_role || "delegue",
-      username, // Add username to students table
-      password_hash, // Add password_hash to students table
-    })
-
-    if (studentError) {
-      console.error("[v0] Error creating student:", studentError)
-      // Supprimer le profil si la création de l'élève échoue
-      await supabase.from("profiles").delete().eq("id", profile.id)
-      throw new Error("Erreur lors de la création de l'élève")
-    }
-
-    console.log("[v0] Student created successfully")
+    // Cette fonction ne devrait créer un étudiant que si c'est une nouvelle création, pas un upgrade
+    console.log("[v0] Profile created for delegate, student record should already exist")
   } else if (params.role === "professeur") {
     // Créer un professeur
     const { data: teacher, error: teacherError } = await supabase

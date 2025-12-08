@@ -32,7 +32,6 @@ import {
   X,
   LayoutTemplate,
   Sparkles,
-  RefreshCw,
 } from "lucide-react"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
 import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
@@ -58,11 +57,11 @@ interface Room {
 }
 
 interface RoomsManagementProps {
-  rooms?: Room[] // Rendu optionnel
+  rooms: Room[]
   establishmentId: string
   userRole: UserRole
   userId: string
-  onBack?: () => void
+  onBack?: () => void // Added onBack prop
 }
 
 export function RoomsManagement({
@@ -73,9 +72,8 @@ export function RoomsManagement({
   onBack,
 }: RoomsManagementProps) {
   const router = useRouter()
-  // Initialiser avec un tableau vide si rooms n'est pas fourni
-  const [rooms, setRooms] = useState<Room[]>(initialRooms || [])
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>(initialRooms || [])
+  const [rooms, setRooms] = useState(initialRooms)
+  const [filteredRooms, setFilteredRooms] = useState(initialRooms)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
   const [viewedRoom, setViewedRoom] = useState<Room | null>(null)
@@ -84,7 +82,6 @@ export function RoomsManagement({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [roomsToDelete, setRoomsToDelete] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialRooms) // Nouveau state pour chargement initial
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
   const [creationMode, setCreationMode] = useState<"template" | "custom" | null>(null)
@@ -99,44 +96,6 @@ export function RoomsManagement({
       { id: "col3", tables: 4, seatsPerTable: 2 },
     ],
   })
-
-  // Charger les salles si non fournies en props
-  useEffect(() => {
-    if (!initialRooms) {
-      fetchRooms()
-    }
-  }, [initialRooms, establishmentId])
-
-  const fetchRooms = async () => {
-    try {
-      setIsInitialLoading(true)
-      const supabase = createClient()
-      
-      const { data, error } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .order("name", { ascending: true })
-
-      if (error) {
-        console.error("Erreur chargement salles:", error)
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les salles",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const safeData = Array.isArray(data) ? data : []
-      setRooms(safeData)
-      setFilteredRooms(safeData)
-    } catch (err) {
-      console.error("Erreur fetchRooms:", err)
-    } finally {
-      setIsInitialLoading(false)
-    }
-  }
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -251,22 +210,74 @@ export function RoomsManagement({
 
       setRooms([...rooms, data])
       setIsAddDialogOpen(false)
-      setCreationMode(null)
-      resetForm()
+      setFormData({
+        name: "",
+        code: "",
+        boardPosition: "top",
+        columns: [
+          { id: "col1", tables: 5, seatsPerTable: 2 },
+          { id: "col2", tables: 5, seatsPerTable: 2 },
+          { id: "col3", tables: 4, seatsPerTable: 2 },
+        ],
+      })
 
       toast({
-        title: "Succès",
-        description: "La salle a été créée avec succès",
+        title: "Salle créée",
+        description: `La salle ${formData.name} a été créée avec ${totalSeats} places`,
       })
-    } catch (error) {
-      console.error("Error adding room:", error)
+    } catch (error: any) {
+      console.error("[v0] Error creating room:", error)
       toast({
         title: "Erreur",
-        description: "Impossible de créer la salle",
+        description: error.message || "Impossible de créer la salle",
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDuplicateRooms = async (roomIds: string[]) => {
+    try {
+      const supabase = createClient()
+      const roomsToDuplicate = rooms.filter((r) => roomIds.includes(r.id))
+
+      for (const room of roomsToDuplicate) {
+        const { error } = await supabase.from("rooms").insert({
+          establishment_id: room.establishment_id,
+          name: `${room.name} (copie)`,
+          code: `${room.code}-copy-${Date.now().toString().slice(-4)}`,
+          board_position: room.board_position,
+          config: room.config,
+          created_by: userId,
+        })
+
+        if (error) throw error
+      }
+
+      toast({
+        title: "Salles dupliquées",
+        description: `${roomIds.length} salle(s) dupliquée(s) avec succès`,
+      })
+
+      // Refresh rooms list
+      const { data } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("establishment_id", establishmentId)
+        .order("created_at", { ascending: false })
+
+      if (data) {
+        setRooms(data)
+      }
+
+      setSelectedRoomIds([])
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de dupliquer les salles",
+        variant: "destructive",
+      })
     }
   }
 
@@ -277,26 +288,6 @@ export function RoomsManagement({
       toast({
         title: "Erreur",
         description: "Le nom et le code de la salle sont requis",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const totalSeats = calculateTotalSeats()
-    if (totalSeats > 350) {
-      toast({
-        title: "Erreur",
-        description: "Le nombre total de places ne peut pas dépasser 350",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const totalWidth = calculateTotalWidth()
-    if (totalWidth > 10) {
-      toast({
-        title: "Erreur",
-        description: "Le nombre total de places en largeur ne peut pas dépasser 10",
         variant: "destructive",
       })
       return
@@ -319,33 +310,29 @@ export function RoomsManagement({
 
       if (error) throw error
 
-      setRooms(
-        rooms.map((room) =>
-          room.id === editingRoom.id
-            ? {
-                ...room,
-                name: formData.name,
-                code: formData.code,
-                board_position: formData.boardPosition,
-                config: { columns: formData.columns },
-              }
-            : room,
-        ),
-      )
+      // Refresh rooms list
+      const { data } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("establishment_id", establishmentId)
+        .order("created_at", { ascending: false })
+
+      if (data) {
+        setRooms(data)
+      }
 
       setIsEditDialogOpen(false)
       setEditingRoom(null)
-      resetForm()
 
       toast({
-        title: "Succès",
-        description: "La salle a été modifiée avec succès",
+        title: "Salle modifiée",
+        description: `La salle ${formData.name} a été modifiée avec succès`,
       })
-    } catch (error) {
-      console.error("Error editing room:", error)
+    } catch (error: any) {
+      console.error("[v0] Error editing room:", error)
       toast({
         title: "Erreur",
-        description: "Impossible de modifier la salle",
+        description: error.message || "Impossible de modifier la salle",
         variant: "destructive",
       })
     } finally {
@@ -353,11 +340,12 @@ export function RoomsManagement({
     }
   }
 
+  const openDeleteDialog = (roomIds: string[]) => {
+    setRoomsToDelete(roomIds)
+    setIsDeleteDialogOpen(true)
+  }
+
   const handleDeleteRooms = async () => {
-    if (roomsToDelete.length === 0) return
-
-    setIsLoading(true)
-
     try {
       const supabase = createClient()
 
@@ -365,63 +353,20 @@ export function RoomsManagement({
 
       if (error) throw error
 
-      setRooms(rooms.filter((room) => !roomsToDelete.includes(room.id)))
+      setRooms(rooms.filter((r) => !roomsToDelete.includes(r.id)))
       setSelectedRoomIds([])
       setRoomsToDelete([])
-      setIsDeleteDialogOpen(false)
 
       toast({
-        title: "Succès",
+        title: "Salle(s) supprimée(s)",
         description: `${roomsToDelete.length} salle(s) supprimée(s) avec succès`,
       })
     } catch (error) {
-      console.error("Error deleting rooms:", error)
       toast({
         title: "Erreur",
         description: "Impossible de supprimer les salles",
         variant: "destructive",
       })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleDuplicateRoom = async (room: Room) => {
-    setIsLoading(true)
-
-    try {
-      const supabase = createClient()
-
-      const { data, error } = await supabase
-        .from("rooms")
-        .insert({
-          establishment_id: establishmentId,
-          name: `${room.name} (copie)`,
-          code: `${room.code}_copy`,
-          board_position: room.board_position,
-          config: room.config,
-          created_by: userId,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      setRooms([...rooms, data])
-
-      toast({
-        title: "Succès",
-        description: "La salle a été dupliquée avec succès",
-      })
-    } catch (error) {
-      console.error("Error duplicating room:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de dupliquer la salle",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -431,21 +376,39 @@ export function RoomsManagement({
       name: room.name,
       code: room.code,
       boardPosition: room.board_position,
-      columns: room.config?.columns || [
-        { id: "col1", tables: 5, seatsPerTable: 2 },
-        { id: "col2", tables: 5, seatsPerTable: 2 },
-        { id: "col3", tables: 4, seatsPerTable: 2 },
-      ],
+      columns: room.config.columns,
     })
     setIsEditDialogOpen(true)
   }
 
-  const openDeleteDialog = (roomIds: string[]) => {
-    setRoomsToDelete(roomIds)
-    setIsDeleteDialogOpen(true)
+  const handleToggleSelection = (roomId: string) => {
+    setSelectedRoomIds((prev) => (prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]))
   }
 
-  const resetForm = () => {
+  const handleSelectAll = () => {
+    if (selectedRoomIds.length === filteredRooms.length) {
+      setSelectedRoomIds([])
+    } else {
+      setSelectedRoomIds(filteredRooms.map((r) => r.id))
+    }
+  }
+
+  const handleViewRoom = (room: Room) => {
+    setViewedRoom(room)
+  }
+
+  const handleSelectTemplate = (template: RoomTemplate) => {
+    setFormData({
+      name: "",
+      code: "",
+      boardPosition: template.boardPosition,
+      columns: template.columns,
+    })
+    setCreationMode("template")
+    setIsAddDialogOpen(true)
+  }
+
+  const handleCustomCreation = () => {
     setFormData({
       name: "",
       code: "",
@@ -456,252 +419,282 @@ export function RoomsManagement({
         { id: "col3", tables: 4, seatsPerTable: 2 },
       ],
     })
-  }
-
-  const toggleRoomSelection = (roomId: string) => {
-    setSelectedRoomIds((prev) => (prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]))
-  }
-
-  const toggleAllRooms = () => {
-    if (selectedRoomIds.length === filteredRooms.length) {
-      setSelectedRoomIds([])
-    } else {
-      setSelectedRoomIds(filteredRooms.map((room) => room.id))
-    }
-  }
-
-  const handleSelectTemplate = (template: RoomTemplate) => {
-    setFormData({
-      name: "",
-      code: "",
-      boardPosition: template.boardPosition,
-      columns: template.columns.map((col, index) => ({
-        id: `col${index + 1}`,
-        tables: col.tables,
-        seatsPerTable: col.seatsPerTable,
-      })),
-    })
-    setIsTemplateDialogOpen(false)
-    setCreationMode("template")
-    setIsAddDialogOpen(true)
-  }
-
-  const handleStartCustomCreation = () => {
-    resetForm()
     setCreationMode("custom")
     setIsAddDialogOpen(true)
   }
 
-  const canEdit = userRole === "vie-scolaire"
-
-  // Affichage du chargement initial
-  if (isInitialLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto p-6 max-w-7xl">
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-3 text-muted-foreground">Chargement des salles...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const isVieScolaire = userRole === "vie-scolaire"
+  const canModifyRooms = isVieScolaire
+  const canViewRooms = true // Everyone can view rooms
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" onClick={onBack || (() => router.back())}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
-          </Button>
-          <h1 className="text-2xl font-bold">Gestion des Salles</h1>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher une salle..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onBack?.()}
+              className="hover:bg-white/50 dark:hover:bg-slate-800/50"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                Gestion des salles
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {rooms.length} salle{rooms.length > 1 ? "s" : ""} • {filteredRooms.length} affichée
+                {filteredRooms.length > 1 ? "s" : ""}
+              </p>
+            </div>
           </div>
-
-          {canEdit && (
-            <div className="flex gap-2">
-              {selectedRoomIds.length > 0 && (
-                <Button variant="destructive" onClick={() => openDeleteDialog(selectedRoomIds)}>
-                  <Trash className="mr-2 h-4 w-4" />
-                  Supprimer ({selectedRoomIds.length})
-                </Button>
-              )}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nouvelle salle
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsTemplateDialogOpen(true)}>
-                    <LayoutTemplate className="mr-2 h-4 w-4" />
-                    Utiliser un modèle
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleStartCustomCreation}>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Créer personnalisé
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          {canModifyRooms && (
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setIsTemplateDialogOpen(true)}
+                size="lg"
+                variant="outline"
+                className="border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
+              >
+                <LayoutTemplate className="mr-2 h-5 w-5" />
+                Templates
+              </Button>
+              <Button
+                onClick={handleCustomCreation}
+                size="lg"
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all"
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Personnaliser
+              </Button>
             </div>
           )}
         </div>
 
-        {viewedRoom ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                {viewedRoom.name} ({viewedRoom.code})
-              </h2>
-              <Button variant="ghost" onClick={() => setViewedRoom(null)}>
-                <X className="mr-2 h-4 w-4" />
-                Fermer
-              </Button>
-            </div>
-            <RoomVisualization room={viewedRoom} />
-          </div>
-        ) : (
-          <>
-            {filteredRooms.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <p className="text-muted-foreground mb-4">Aucune salle trouvée</p>
-                  {canEdit && (
-                    <Button onClick={handleStartCustomCreation}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Créer une salle
+        <div className="mb-6">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-emerald-100 dark:scrollbar-thumb-emerald-700 dark:scrollbar-track-slate-800">
+            {rooms.map((room) => {
+              const totalSeats = room.config?.columns
+                ? room.config.columns.reduce((total, col) => total + col.tables * col.seatsPerTable, 0)
+                : 0
+              const isSelected = selectedRoomIds.includes(room.id)
+
+              return (
+                <Card
+                  key={room.id}
+                  className={`flex-shrink-0 w-72 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+                    isSelected
+                      ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-200 dark:shadow-emerald-900"
+                      : "hover:ring-1 hover:ring-emerald-300"
+                  } bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm`}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelection(room.id)}
+                        className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                      />
+                      {canModifyRooms && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleViewRoom(room)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Voir
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicateRooms([room.id])}>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Dupliquer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditDialog(room)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openDeleteDialog([room.id])} className="text-red-600">
+                              <Trash className="mr-2 h-4 w-4" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">{room.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                          {room.code}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {room.config?.columns?.length || 0} col. • {totalSeats} places
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-4 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800 dark:hover:bg-emerald-900/20 bg-transparent"
+                      onClick={() => handleViewRoom(room)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Voir la salle
                     </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b dark:border-slate-700">
-                        {canEdit && (
-                          <th className="px-4 py-3 text-left">
-                            <Checkbox
-                              checked={selectedRoomIds.length === filteredRooms.length && filteredRooms.length > 0}
-                              onCheckedChange={toggleAllRooms}
-                            />
-                          </th>
-                        )}
-                        <th className="px-4 py-3 text-left font-medium">Nom</th>
-                        <th className="px-4 py-3 text-left font-medium">Code</th>
-                        <th className="px-4 py-3 text-left font-medium">Configuration</th>
-                        <th className="px-4 py-3 text-left font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRooms.map((room) => (
-                        <tr key={room.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                          {canEdit && (
-                            <td className="px-4 py-3">
-                              <Checkbox
-                                checked={selectedRoomIds.includes(room.id)}
-                                onCheckedChange={() => toggleRoomSelection(room.id)}
-                              />
-                            </td>
-                          )}
-                          <td className="px-4 py-3 font-medium">{room.name}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{room.code}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">
-                            {room.config?.columns?.length || 0} colonnes •{" "}
-                            {room.config?.columns?.reduce((sum, col) => sum + col.tables * col.seatsPerTable, 0) || 0} places
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => setViewedRoom(room)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {canEdit && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => openEditDialog(room)}>
-                                      <Edit className="mr-2 h-4 w-4" />
-                                      Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDuplicateRoom(room)}>
-                                      <Copy className="mr-2 h-4 w-4" />
-                                      Dupliquer
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-red-600"
-                                      onClick={() => openDeleteDialog([room.id])}
-                                    >
-                                      <Trash className="mr-2 h-4 w-4" />
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="mb-6 space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher par nom ou code de salle..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-12 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 focus:ring-emerald-500"
+              />
+            </div>
+            {canModifyRooms && (
+              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <Checkbox
+                  checked={selectedRoomIds.length === filteredRooms.length && filteredRooms.length > 0}
+                  onCheckedChange={handleSelectAll}
+                  className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                />
+                <Label className="text-sm cursor-pointer font-medium" onClick={handleSelectAll}>
+                  Tout sélectionner
+                </Label>
               </div>
             )}
-          </>
+          </div>
+
+          {selectedRoomIds.length > 0 && canModifyRooms && (
+            <div className="flex gap-2 animate-in slide-in-from-top-2 duration-300">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDuplicateRooms(selectedRoomIds)}
+                className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Dupliquer ({selectedRoomIds.length})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id))
+                  if (selectedRooms.length === 1) {
+                    openEditDialog(selectedRooms[0])
+                  } else {
+                    toast({
+                      title: "Information",
+                      description: "Vous ne pouvez modifier qu'une seule salle à la fois",
+                    })
+                  }
+                }}
+                className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier ({selectedRoomIds.length})
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => openDeleteDialog(selectedRoomIds)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Supprimer ({selectedRoomIds.length})
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {viewedRoom && (
+          <Card className="mb-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 shadow-xl animate-in slide-in-from-bottom-4 duration-500">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{viewedRoom.name}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Code: {viewedRoom.code}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-emerald-300 hover:bg-emerald-50 dark:border-emerald-700 bg-transparent"
+                  >
+                    Transposer en plan de classe
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewedRoom(null)}
+                    className="hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+              <RoomVisualization room={viewedRoom} />
+            </CardContent>
+          </Card>
         )}
 
-        {/* Add Dialog */}
+        {filteredRooms.length === 0 && (
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
+            <CardContent className="py-16 text-center">
+              <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-4">
+                <Search className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                {searchQuery ? "Aucune salle trouvée" : "Aucune salle créée"}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? "Essayez avec un autre terme de recherche" : "Commencez par créer votre première salle"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {creationMode === "template" ? "Nouvelle salle (depuis modèle)" : "Nouvelle salle personnalisée"}
-              </DialogTitle>
-              <DialogDescription>
-                Configurez les paramètres de la nouvelle salle
-              </DialogDescription>
+              <DialogTitle>Créer une salle</DialogTitle>
+              <DialogDescription>Configurez la disposition de la salle de classe</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="name">Nom de la salle</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Salle 101"
+                    placeholder="ex: Salle B23"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="code">Code</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="code">Code de la salle</Label>
                   <Input
                     id="code"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="Ex: S101"
+                    placeholder="ex: B23"
                   />
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="boardPosition">Position du tableau</Label>
                 <Select
                   value={formData.boardPosition}
@@ -736,9 +729,9 @@ export function RoomsManagement({
                     <div key={index} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
                       <div className="col-span-1 font-medium text-center">{index + 1}</div>
                       <div className="col-span-5">
-                        <Label htmlFor={`add-tables-${index}`}>Nombre de tables</Label>
+                        <Label htmlFor={`tables-${index}`}>Nombre de tables</Label>
                         <Input
-                          id={`add-tables-${index}`}
+                          id={`tables-${index}`}
                           type="number"
                           min="1"
                           max="20"
@@ -747,9 +740,9 @@ export function RoomsManagement({
                         />
                       </div>
                       <div className="col-span-5">
-                        <Label htmlFor={`add-seats-${index}`}>Places par table</Label>
+                        <Label htmlFor={`seats-${index}`}>Places par table</Label>
                         <Input
-                          id={`add-seats-${index}`}
+                          id={`seats-${index}`}
                           type="number"
                           min="1"
                           max="7"
@@ -780,13 +773,7 @@ export function RoomsManagement({
               </div>
             </div>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsAddDialogOpen(false)
-                  setCreationMode(null)
-                }}
-              >
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Annuler
               </Button>
               <Button onClick={handleAddRoom} disabled={isLoading}>
@@ -796,37 +783,36 @@ export function RoomsManagement({
           </DialogContent>
         </Dialog>
 
-        {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Modifier la salle</DialogTitle>
-              <DialogDescription>Modifiez les paramètres de la salle</DialogDescription>
+              <DialogDescription>Modifiez la configuration de la salle de classe</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-name">Nom de la salle</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nom de la salle</Label>
                   <Input
-                    id="edit-name"
+                    id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Salle 101"
+                    placeholder="ex: Salle B23"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit-code">Code</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="code">Code de la salle</Label>
                   <Input
-                    id="edit-code"
+                    id="code"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="Ex: S101"
+                    placeholder="ex: B23"
                   />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="edit-boardPosition">Position du tableau</Label>
+              <div className="space-y-2">
+                <Label htmlFor="boardPosition">Position du tableau</Label>
                 <Select
                   value={formData.boardPosition}
                   onValueChange={(value: "top" | "bottom" | "left" | "right") =>
@@ -946,6 +932,8 @@ function RoomVisualization({ room }: { room: Room }) {
 
   let seatNumber = 1
   const boardMargin = 100 // pixels of space around the board
+  const isHorizontalBoard = board_position === "top" || board_position === "bottom"
+  const isVerticalBoard = board_position === "left" || board_position === "right"
 
   return (
     <div className="relative border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-16 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 min-h-[600px] overflow-auto">

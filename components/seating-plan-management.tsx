@@ -42,7 +42,6 @@ interface Class {
 
 interface Teacher {
   id: string
-  profile_id: string | null
   first_name: string
   last_name: string
   subject: string
@@ -168,32 +167,21 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
     const { data: subRoomsData } = await subRoomsQuery.order("created_at", { ascending: false })
     if (subRoomsData) setSubRooms(subRoomsData)
 
-    // Passer les données directement au lieu de compter sur le state
-    await setAvailableOptions(supabase, teachersData || [], classesData || [])
+    await setAvailableOptions(supabase)
   }
 
-  const setAvailableOptions = async (supabase: any, teachersData: Teacher[], classesData: Class[]) => {
+  const setAvailableOptions = async (supabase: any) => {
     if (userRole === "professeur") {
-      // Pour l'instant, montrer tous les professeurs
-      // TODO: Restreindre quand les profile_id seront tous liés
-      setAvailableTeachers(teachersData)
+      const { data: teacherClasses } = await supabase
+        .from("teacher_classes")
+        .select("class_id, classes(id, name)")
+        .eq("teacher_id", userId)
 
-      // Chercher les classes du professeur via teacher_classes
-      // D'abord trouver le teacher correspondant au profile_id
-      const myTeacher = teachersData.find((t) => t.profile_id === userId)
-      
-      if (myTeacher) {
-        const { data: teacherClasses } = await supabase
-          .from("teacher_classes")
-          .select("class_id, classes(id, name)")
-          .eq("teacher_id", myTeacher.id)
+      const myClasses = teacherClasses?.map((tc: any) => tc.classes) || []
+      setAvailableClasses(myClasses)
 
-        const myClasses = teacherClasses?.map((tc: any) => tc.classes).filter(Boolean) || []
-        setAvailableClasses(myClasses.length > 0 ? myClasses : classesData)
-      } else {
-        // Si pas de liaison profile_id, montrer toutes les classes
-        setAvailableClasses(classesData)
-      }
+      const myTeacher = teachers.find((t) => t.id === userId)
+      setAvailableTeachers(myTeacher ? [myTeacher] : [])
     } else if (userRole === "delegue" || userRole === "eco-delegue") {
       const { data: studentData } = await supabase.from("students").select("class_id").eq("id", userId).single()
 
@@ -208,14 +196,12 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
 
         setAvailableTeachers(allowedTeachers)
 
-        // Utiliser classesData au lieu du state classes
-        const myClass = classesData.find((c) => c.id === studentData.class_id)
+        const myClass = classes.find((c) => c.id === studentData.class_id)
         setAvailableClasses(myClass ? [myClass] : [])
       }
     } else {
-      // Vie-scolaire : utiliser les données passées en paramètre
-      setAvailableTeachers(teachersData)
-      setAvailableClasses(classesData)
+      setAvailableTeachers(teachers)
+      setAvailableClasses(classes)
     }
   }
 
@@ -288,39 +274,6 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
 
       const subRoomName = `${selectedRoom.name} ${classNames} ${teacherName}`
 
-      // Pour les professeurs, userId est le teacher.id, mais created_by exige profiles.id
-      // Pour les délégués, userId est le student.id, même problème
-      // On doit trouver le profile_id correspondant
-      let createdByProfileId = userId
-      
-      if (userRole === "professeur") {
-        // Chercher le teacher actuel pour obtenir son profile_id
-        const currentTeacher = teachers.find((t) => t.id === userId)
-        if (currentTeacher?.profile_id) {
-          createdByProfileId = currentTeacher.profile_id
-        }
-      } else if (userRole === "delegue" || userRole === "eco-delegue") {
-        // Pour les délégués, chercher le student pour obtenir son username
-        // puis chercher le profile correspondant
-        const { data: studentData } = await supabase
-          .from("students")
-          .select("username")
-          .eq("id", userId)
-          .single()
-        
-        if (studentData?.username) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("username", studentData.username)
-            .single()
-          
-          if (profileData?.id) {
-            createdByProfileId = profileData.id
-          }
-        }
-      }
-
       const { data, error } = await supabase
         .from("sub_rooms")
         .insert({
@@ -331,8 +284,8 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
           teacher_id: formData.teacherId,
           class_ids: formData.classIds,
           is_multi_class: formData.isMultiClass,
-          created_by: createdByProfileId,
-          type: "permanent",
+          created_by: userId,
+          type: "indeterminate",
         })
         .select()
         .single()
