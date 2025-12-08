@@ -36,6 +36,29 @@ interface TeachersManagementProps {
   onBack?: () => void
 }
 
+function generateStrongPassword(length = 8): string {
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  const lowercase = "abcdefghijklmnopqrstuvwxyz"
+  const numbers = "0123456789"
+  const special = "!@#$%"
+  const all = uppercase + lowercase + numbers + special
+
+  let password = ""
+  password += uppercase[Math.floor(Math.random() * uppercase.length)]
+  password += lowercase[Math.floor(Math.random() * lowercase.length)]
+  password += numbers[Math.floor(Math.random() * numbers.length)]
+  password += special[Math.floor(Math.random() * special.length)]
+
+  for (let i = password.length; i < length; i++) {
+    password += all[Math.floor(Math.random() * all.length)]
+  }
+
+  return password
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("")
+}
+
 export function TeachersManagement({ establishmentId, userRole, userId, onBack }: TeachersManagementProps) {
   const router = useRouter()
   const [teachers, setTeachers] = useState<Teacher[]>([])
@@ -1426,11 +1449,25 @@ export function TeachersManagement({ establishmentId, userRole, userId, onBack }
             </div>
             <div>
               <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                value={accessData.password}
-                onChange={(e) => setAccessData({ ...accessData, password: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="password"
+                  type="text"
+                  value={accessData.password}
+                  onChange={(e) => setAccessData({ ...accessData, password: e.target.value })}
+                  placeholder="Saisir un nouveau mot de passe"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAccessData({ ...accessData, password: generateStrongPassword(8) })}
+                >
+                  <Key className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Cliquez sur l'icône pour générer un mot de passe fort aléatoire.
+              </p>
             </div>
             <Button onClick={handleUpdateCredentials} className="w-full">
               Enregistrer les identifiants
