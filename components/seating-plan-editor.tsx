@@ -306,6 +306,8 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
         sub_room_id: subRoom.id,
         student_id: studentId,
         seat_position: seatNumber,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }))
 
       console.log("[v0] Assignments to insert:", assignmentsToInsert)
@@ -462,6 +464,51 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
       backgroundColor: "#F3F4F6",
       borderColor: "#D1D5DB",
     }
+  }
+
+  const getBoardAlignment = () => {
+    if (!room) return ""
+    switch (room.board_position) {
+      case "top":
+        return "justify-center items-start"
+      case "bottom":
+        return "justify-center items-end"
+      case "left":
+        return "justify-start items-center"
+      case "right":
+        return "justify-end items-center"
+      default:
+        return ""
+    }
+  }
+
+  const getSeatNumber = (colIndex: number, tableIndex: number, seatIndex: number) => {
+    if (!room) return 0
+    let seatNumber = 1
+    for (let i = 0; i < colIndex; i++) {
+      seatNumber += room.config.columns[i].tables * room.config.columns[i].seatsPerTable
+    }
+    seatNumber += tableIndex * room.config.columns[colIndex].seatsPerTable + seatIndex + 1
+    return seatNumber
+  }
+
+  const getResponsiveTableSize = () => {
+    if (!room) return "w-16 h-16"
+    const columnCount = room.config.columns.length
+
+    // Fewer columns = larger tables, more columns = smaller tables
+    if (columnCount <= 2) return "w-20 h-20 md:w-24 md:h-24"
+    if (columnCount <= 4) return "w-16 h-16 md:w-20 md:h-20"
+    return "w-12 h-12 md:w-16 md:h-16"
+  }
+
+  const getResponsiveSeatSize = () => {
+    if (!room) return "w-8 h-8"
+    const columnCount = room.config.columns.length
+
+    if (columnCount <= 2) return "w-10 h-10 md:w-12 md:h-12"
+    if (columnCount <= 4) return "w-8 h-8 md:w-10 md:h-10"
+    return "w-6 h-6 md:w-8 md:h-8"
   }
 
   if (!room) {

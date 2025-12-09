@@ -11,6 +11,8 @@ export interface RoomTemplate {
   boardPosition: "top" | "bottom" | "left" | "right"
   isCustom?: boolean
   isPinned?: boolean
+  createdBy?: string
+  establishmentId?: string
 }
 
 export const ROOM_TEMPLATES: RoomTemplate[] = [

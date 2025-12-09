@@ -38,6 +38,7 @@ interface Room {
 interface Class {
   id: string
   name: string
+  is_level: boolean
 }
 
 interface Teacher {
@@ -183,6 +184,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
         .from("classes")
         .select("*")
         .eq("establishment_id", establishmentId)
+        .neq("is_level", true) // Exclude custom levels
 
       console.log("[v0] Vie scolaire - Teachers:", allTeachers?.length, "Classes:", allClasses?.length)
 

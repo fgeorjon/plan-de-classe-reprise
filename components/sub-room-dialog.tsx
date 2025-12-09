@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/components/ui/use-toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -27,11 +28,29 @@ interface SubRoomDialogProps {
   onOpenChange: (open: boolean) => void
   roomAssignmentId: string
   userId: string
+  userRole: string
+  establishmentId: string
+  availableTeachers: any[]
+  availableClasses: any[]
   onSuccess: () => void
 }
 
-export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, onSuccess }: SubRoomDialogProps) {
+export function SubRoomDialog({
+  open,
+  onOpenChange,
+  roomAssignmentId,
+  userId,
+  userRole,
+  establishmentId,
+  availableTeachers,
+  availableClasses,
+  onSuccess,
+}: SubRoomDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
+  const [isCollaborative, setIsCollaborative] = useState(false)
+  const [filteredClasses, setFilteredClasses] = useState<any[]>([])
   const [formData, setFormData] = useState({
     name: "",
     type: "temporary" as SubRoomType,
@@ -39,11 +58,66 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
     end_date: addDays(new Date(), 2),
   })
 
+  useEffect(() => {
+    const filterClassesByTeachers = async () => {
+      if (selectedTeachers.length === 0) {
+        setFilteredClasses([])
+        return
+      }
+
+      const supabase = createClient()
+
+      // Get classes taught by selected teachers
+      const { data: teacherClasses } = await supabase
+        .from("teacher_classes")
+        .select("class_id")
+        .in("teacher_id", selectedTeachers)
+
+      if (teacherClasses) {
+        const classIds = teacherClasses.map((tc) => tc.class_id)
+        const filtered = availableClasses.filter((c) => classIds.includes(c.id))
+        setFilteredClasses(filtered)
+      }
+    }
+
+    filterClassesByTeachers()
+  }, [selectedTeachers, availableClasses])
+
+  const handleTeacherToggle = (teacherId: string) => {
+    setSelectedTeachers((prev) => {
+      if (prev.includes(teacherId)) {
+        return prev.filter((id) => id !== teacherId)
+      }
+      if (isCollaborative || prev.length === 0) {
+        return [...prev, teacherId]
+      }
+      return [teacherId] // Replace if not collaborative
+    })
+  }
+
   const handleCreateSubRoom = async () => {
     if (!formData.name.trim()) {
       toast({
         title: "Erreur",
         description: "Le nom de la sous-salle est requis",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (selectedTeachers.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner au moins un professeur",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (selectedClasses.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner au moins une classe",
         variant: "destructive",
       })
       return
@@ -70,8 +144,10 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
         room_assignment_id: roomAssignmentId,
         name: formData.name,
         type: formData.type,
+        class_ids: selectedClasses,
         seat_assignments: {},
         is_modifiable_by_delegates: true,
+        is_collaborative: isCollaborative,
         created_by: userId,
       }
 
@@ -80,21 +156,38 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
         insertData.end_date = formData.end_date.toISOString()
       }
 
-      const { error } = await supabase.from("sub_rooms").insert(insertData)
+      const { data: subRoom, error: subRoomError } = await supabase
+        .from("sub_rooms")
+        .insert(insertData)
+        .select()
+        .single()
 
-      if (error) throw error
+      if (subRoomError) throw subRoomError
+
+      const teacherAssociations = selectedTeachers.map((teacherId) => ({
+        sub_room_id: subRoom.id,
+        teacher_id: teacherId,
+      }))
+
+      const { error: teacherError } = await supabase.from("sub_room_teachers").insert(teacherAssociations)
+
+      if (teacherError) throw teacherError
 
       toast({
         title: "Sous-salle créée",
         description: `La sous-salle "${formData.name}" a été créée avec succès`,
       })
 
+      // Reset form
       setFormData({
         name: "",
         type: "temporary",
         start_date: new Date(),
         end_date: addDays(new Date(), 2),
       })
+      setSelectedTeachers([])
+      setSelectedClasses([])
+      setIsCollaborative(false)
 
       onOpenChange(false)
       onSuccess()
@@ -111,7 +204,7 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Créer une sous-salle</DialogTitle>
           <DialogDescription>
@@ -119,7 +212,7 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Nom de la sous-salle</Label>
             <Input
@@ -128,6 +221,87 @@ export function SubRoomDialog({ open, onOpenChange, roomAssignmentId, userId, on
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="ex: Configuration examen"
             />
+          </div>
+
+          <div className="flex items-center space-x-2 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+            <Checkbox
+              id="collaborative"
+              checked={isCollaborative}
+              onCheckedChange={(checked) => {
+                setIsCollaborative(checked as boolean)
+                if (!checked && selectedTeachers.length > 1) {
+                  setSelectedTeachers([selectedTeachers[0]])
+                }
+              }}
+            />
+            <Label htmlFor="collaborative" className="cursor-pointer">
+              <div className="font-medium">Salle collaborative</div>
+              <div className="text-sm text-muted-foreground">
+                Permet de sélectionner plusieurs professeurs et plusieurs classes
+              </div>
+            </Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Professeur{isCollaborative ? "s" : ""}</Label>
+            <div className="border rounded-lg p-4 space-y-2 max-h-48 overflow-y-auto">
+              {availableTeachers.map((teacher) => (
+                <div key={teacher.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`teacher-${teacher.id}`}
+                    checked={selectedTeachers.includes(teacher.id)}
+                    onCheckedChange={() => handleTeacherToggle(teacher.id)}
+                  />
+                  <Label htmlFor={`teacher-${teacher.id}`} className="flex-1 cursor-pointer">
+                    {teacher.first_name} {teacher.last_name} - {teacher.subject}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {selectedTeachers.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {selectedTeachers.length} professeur{selectedTeachers.length > 1 ? "s" : ""} sélectionné
+                {selectedTeachers.length > 1 ? "s" : ""}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Classe{isCollaborative ? "s" : ""}</Label>
+            {selectedTeachers.length === 0 ? (
+              <div className="text-sm text-muted-foreground p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                Veuillez d'abord sélectionner un ou plusieurs professeurs
+              </div>
+            ) : (
+              <>
+                <div className="border rounded-lg p-4 space-y-2 max-h-48 overflow-y-auto">
+                  {filteredClasses.map((cls) => (
+                    <div key={cls.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`class-${cls.id}`}
+                        checked={selectedClasses.includes(cls.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedClasses((prev) => [...prev, cls.id])
+                          } else {
+                            setSelectedClasses((prev) => prev.filter((id) => id !== cls.id))
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`class-${cls.id}`} className="flex-1 cursor-pointer">
+                        {cls.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {filteredClasses.length === 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Aucune classe n'est enseignée par{" "}
+                    {selectedTeachers.length > 1 ? "ces professeurs" : "ce professeur"}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="space-y-2">
