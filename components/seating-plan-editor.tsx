@@ -488,20 +488,21 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
 
   const getTableStyle = () => {
     return {
-      backgroundColor: "#B58255", // New brown color for tables
-      borderColor: "#8B5A3C",
+      backgroundColor: "#FFFFFF", // White tables
+      borderColor: "#E5E7EB",
     }
   }
 
   const getSeatStyle = (isOccupied: boolean) => {
     if (isOccupied) {
       return {
-        backgroundColor: "#CCEDD6", // New green color for occupied seats
-        borderColor: "#A8D5BA",
+        backgroundColor: "#000000", // Black background for occupied seats
+        borderColor: "#374151",
+        color: "#FFFFFF", // White text
       }
     }
     return {
-      backgroundColor: "#F3F4F6",
+      backgroundColor: "#F3F4F6", // Light gray for empty seats
       borderColor: "#D1D5DB",
     }
   }
@@ -729,7 +730,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                               handleDrop(seatNumber)
                             }}
                           >
-                            <div className={`grid grid-cols-2 ${getResponsiveGap()}`}>
+                            <div className={`grid grid-cols-2 ${getResponsiveGap()} p-2`}>
                               {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => {
                                 const seatNumber = getSeatNumber(colIndex, tableIndex, seatIndex)
                                 const assignment = assignments.get(seatNumber)
@@ -752,7 +753,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                                   >
                                     {student ? (
                                       <>
-                                        <span className="text-gray-700 dark:text-gray-800 text-[10px] sm:text-xs">
+                                        <span className="text-white text-[10px] sm:text-xs font-semibold">
                                           {student.last_name.substring(0, 1)}.{student.first_name.substring(0, 1)}
                                         </span>
                                         <button

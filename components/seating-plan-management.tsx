@@ -633,17 +633,6 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <h3 className="font-bold text-lg text-slate-900 dark:text-white">{subRoom.name}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteSubRoom(subRoom.id)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
