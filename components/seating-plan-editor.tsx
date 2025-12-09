@@ -537,23 +537,17 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
     if (!room) return "w-16 h-16"
     const columnCount = room.config.columns.length
 
-    // For 2 columns or less: large tables
-    if (columnCount <= 2) return "w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40"
-    // For 3-4 columns: medium tables
-    if (columnCount <= 4) return "w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28"
-    // For 5+ columns: small tables
-    return "w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20"
+    if (columnCount <= 2) return "w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 lg:w-44 lg:h-44"
+    if (columnCount <= 4) return "w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32"
+    return "w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24"
   }
 
   const getResponsiveSeatSize = () => {
     if (!room) return "w-8 h-8"
     const columnCount = room.config.columns.length
 
-    // For 2 columns or less: large seats
-    if (columnCount <= 2) return "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16"
-    // For 3-4 columns: medium seats
-    if (columnCount <= 4) return "w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12"
-    // For 5+ columns: small seats
+    if (columnCount <= 2) return "w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18"
+    if (columnCount <= 4) return "w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13"
     return "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
   }
 
@@ -722,7 +716,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                         {Array.from({ length: column.tables }).map((_, tableIndex) => (
                           <div
                             key={tableIndex}
-                            className={`relative ${getResponsiveTableSize()} rounded-lg border-2 flex items-center justify-center`}
+                            className={`relative ${getResponsiveTableSize()} rounded-lg border-2 flex items-center justify-center p-2`}
                             style={getTableStyle()}
                             onDragOver={handleDragOver}
                             onDrop={(e) => {
@@ -730,7 +724,9 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                               handleDrop(seatNumber)
                             }}
                           >
-                            <div className={`grid grid-cols-2 ${getResponsiveGap()} p-2`}>
+                            <div
+                              className={`grid ${column.seatsPerTable === 1 ? "grid-cols-1" : "grid-cols-2"} gap-2 place-items-center w-full h-full`}
+                            >
                               {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => {
                                 const seatNumber = getSeatNumber(colIndex, tableIndex, seatIndex)
                                 const assignment = assignments.get(seatNumber)

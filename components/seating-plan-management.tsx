@@ -602,30 +602,19 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredSubRooms.map((subRoom) => (
-            <Card key={subRoom.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="absolute top-4 left-4 z-10">
-                <input
-                  type="checkbox"
-                  checked={selectedSubRoomIds.includes(subRoom.id)}
-                  onChange={() => toggleSubRoomSelection(subRoom.id)}
-                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                />
-              </div>
-
+            <Card key={subRoom.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 ml-8">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedSubRoomIds.includes(subRoom.id)}
+                    onChange={() => toggleSubRoomSelection(subRoom.id)}
+                    className="w-5 h-5 mt-1 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                  />
+                  <div className="flex-1">
                     <CardTitle className="text-lg">{subRoom.name}</CardTitle>
                     <CardDescription className="mt-1 text-sm">{subRoom.description}</CardDescription>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => openDeleteDialog([subRoom.id])}
-                    className="shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               </CardHeader>
 
