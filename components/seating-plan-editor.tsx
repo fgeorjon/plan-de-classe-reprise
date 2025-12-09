@@ -580,9 +580,9 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
 
     const cols = room.config.columns.length
 
-    if (cols <= 2) return "w-72" // Large tables for 2 columns
-    if (cols <= 4) return "w-56" // Medium tables for 3-4 columns
-    return "w-48" // Small tables for 5+ columns
+    if (cols <= 2) return "w-48 min-h-[12rem]" // Tables carrées pour 2 colonnes
+    if (cols <= 4) return "w-44 min-h-[11rem]" // Tables moyennes pour 3-4 colonnes
+    return "w-40 min-h-[10rem]" // Petites tables pour 5+ colonnes
   }
 
   const getResponsiveSeatSize = () => {
@@ -763,7 +763,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                             className={`relative ${getResponsiveTableSize()} rounded-lg border-2 bg-white dark:bg-gray-800`}
                             style={{
                               borderColor: "#8B7355",
-                              minHeight: "fit-content",
+                              aspectRatio: "auto",
                             }}
                             onDragOver={handleDragOver}
                             onDrop={(e) => {
@@ -784,7 +784,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                                         : column.seatsPerTable === 6
                                           ? "grid-cols-3"
                                           : "grid-cols-2"
-                              } gap-2 p-3 place-items-center w-full`}
+                              } gap-2 p-4 place-items-center w-full h-full`}
                             >
                               {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => {
                                 const seatNumber = getSeatNumber(colIndex, tableIndex, seatIndex)

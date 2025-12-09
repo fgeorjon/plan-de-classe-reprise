@@ -5,23 +5,14 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
-import { ArrowLeft, Plus, Search, AlertTriangle, Users, BookOpen, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Search, Users, BookOpen, Trash2 } from "lucide-react"
 import type { UserRole } from "@/lib/types"
 import { SeatingPlanEditor } from "@/components/seating-plan-editor"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
+import { CreateSubRoomDialog } from "./create-sub-room-dialog"
 
 interface Room {
   id: string
@@ -105,6 +96,8 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
   const [selectedSubRoomIds, setSelectedSubRoomIds] = useState<string[]>([])
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [subRoomsToDelete, setSubRoomsToDelete] = useState<string[]>([])
+
+  const [currentUserRecord, setCurrentUserRecord] = useState<any>(null)
 
   useEffect(() => {
     fetchData()
@@ -270,6 +263,8 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
         if (teachers) setAvailableTeachers(teachers)
       }
     }
+
+    setCurrentUserRecord(currentUserRecord)
   }
 
   const checkCapacity = async () => {
@@ -292,98 +287,26 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
     }
   }
 
-  const handleCreateSubRoom = async () => {
-    if (!formData.roomId || !formData.customName.trim() || !formData.teacherId || formData.classIds.length === 0) {
-      toast({
-        title: "Erreur",
-        description: "Tous les champs sont requis",
-        variant: "destructive",
-      })
-      return
+  const fetchSubRooms = async () => {
+    const supabase = createClient()
+
+    let subRoomsQuery = supabase
+      .from("sub_rooms")
+      .select(`
+        *,
+        rooms(name, code),
+        teachers(first_name, last_name)
+      `)
+      .eq("establishment_id", establishmentId)
+
+    if (userRole === "professeur") {
+      subRoomsQuery = subRoomsQuery.or(`teacher_id.eq.${userId},created_by.eq.${userId}`)
+    } else if (userRole === "delegue" || userRole === "eco-delegue") {
+      subRoomsQuery = subRoomsQuery.eq("created_by", userId)
     }
 
-    if (userRole === "professeur" && formData.teacherId !== userId) {
-      toast({
-        title: "Erreur",
-        description: "Vous ne pouvez créer des sous-salles que pour vous-même",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if ((userRole === "delegue" || userRole === "eco-delegue") && formData.teacherId !== userId) {
-      const selectedTeacher = teachers.find((t) => t.id === formData.teacherId)
-      if (!selectedTeacher?.allow_delegate_subrooms) {
-        toast({
-          title: "Erreur",
-          description: "Ce professeur n'autorise pas les délégués à créer des sous-salles",
-          variant: "destructive",
-        })
-        return
-      }
-    }
-
-    setIsLoading(true)
-
-    try {
-      const supabase = createClient()
-
-      const selectedRoom = rooms.find((r) => r.id === formData.roomId)
-      const selectedClasses = classes.filter((c) => formData.classIds.includes(c.id))
-      const selectedTeacher = teachers.find((t) => t.id === formData.teacherId)
-
-      if (!selectedRoom || !selectedTeacher) {
-        throw new Error("Salle ou professeur introuvable")
-      }
-
-      const classNames = selectedClasses.map((c) => c.name).join(" ")
-      const teacherName = `${selectedTeacher.first_name} ${selectedTeacher.last_name}`
-
-      const subRoomName = `${selectedRoom.name} ${classNames} ${teacherName}`
-
-      const { data, error } = await supabase
-        .from("sub_rooms")
-        .insert({
-          establishment_id: establishmentId,
-          room_id: formData.roomId,
-          name: subRoomName,
-          custom_name: formData.customName,
-          teacher_id: formData.teacherId,
-          class_ids: formData.classIds,
-          is_multi_class: formData.isMultiClass,
-          created_by: userId,
-          type: "indeterminate",
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      toast({
-        title: "Sous-salle créée",
-        description: `La sous-salle "${subRoomName}" a été créée avec succès`,
-      })
-
-      setIsCreateDialogOpen(false)
-      setFormData({
-        roomId: "",
-        customName: "",
-        teacherId: "",
-        classIds: [],
-        isMultiClass: false,
-      })
-
-      fetchData()
-    } catch (error: any) {
-      console.error("[v0] Error creating sub-room:", error)
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer la sous-salle",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    const { data: subRoomsData } = await subRoomsQuery.order("created_at", { ascending: false })
+    if (subRoomsData) setSubRooms(subRoomsData)
   }
 
   const handleToggleClass = (classId: string) => {
@@ -632,121 +555,18 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
           </Card>
         )}
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Créer une sous-salle</DialogTitle>
-              <DialogDescription>Configurez une sous-salle pour un plan de classe</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="room">Salle</Label>
-                <Select value={formData.roomId} onValueChange={(value) => setFormData({ ...formData, roomId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une salle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rooms.map((room) => (
-                      <SelectItem key={room.id} value={room.id}>
-                        {room.name} ({room.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="customName">Nom personnalisé</Label>
-                <Input
-                  id="customName"
-                  value={formData.customName}
-                  onChange={(e) => setFormData({ ...formData, customName: e.target.value })}
-                  placeholder="ex: Salle B23 Mr Gomant"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="teacher">Professeur</Label>
-                <Select
-                  value={formData.teacherId}
-                  onValueChange={(value) => setFormData({ ...formData, teacherId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un professeur" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTeachers.length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        Aucun professeur disponible
-                      </SelectItem>
-                    ) : (
-                      availableTeachers.map((teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.first_name} {teacher.last_name} - {teacher.subject}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Classes</Label>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="multi-class"
-                      checked={formData.isMultiClass}
-                      onCheckedChange={(checked) =>
-                        setFormData({
-                          ...formData,
-                          isMultiClass: checked as boolean,
-                          classIds: [],
-                        })
-                      }
-                    />
-                    <Label htmlFor="multi-class" className="text-sm font-normal cursor-pointer">
-                      Multi-classes
-                    </Label>
-                  </div>
-                </div>
-                {availableClasses.length === 0 ? (
-                  <div className="text-sm text-muted-foreground border rounded-md p-4">Aucune classe disponible</div>
-                ) : (
-                  <div className="border rounded-md p-4 space-y-2 max-h-48 overflow-y-auto">
-                    {availableClasses.map((cls) => (
-                      <div key={cls.id} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`class-${cls.id}`}
-                          checked={formData.classIds.includes(cls.id)}
-                          onCheckedChange={() => handleToggleClass(cls.id)}
-                        />
-                        <Label htmlFor={`class-${cls.id}`} className="text-sm font-normal cursor-pointer flex-1">
-                          {cls.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {showWarning && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-800 dark:text-amber-200">{warningMessage}</p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleCreateSubRoom} disabled={isLoading}>
-                {isLoading ? "Création..." : "Créer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <CreateSubRoomDialog
+          open={isCreateDialogOpen}
+          onOpenChange={setIsCreateDialogOpen}
+          onSuccess={() => {
+            fetchSubRooms()
+            toast({
+              title: "Succès",
+              description: "Sous-salle créée avec succès",
+            })
+          }}
+          establishmentId={establishmentId}
+        />
 
         {isEditorOpen && selectedSubRoom && (
           <SeatingPlanEditor
