@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AlertTriangle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 
 interface Teacher {
   id: string
@@ -61,7 +60,6 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
   })
 
   const supabase = createClient()
-  const { toast } = useToast()
 
   useEffect(() => {
     if (open) {
@@ -171,11 +169,6 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
 
   const handleCreate = async () => {
     if (!formData.roomId || formData.selectedTeachers.length === 0 || formData.selectedClasses.length === 0) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs requis",
-        variant: "destructive",
-      })
       return
     }
 
@@ -186,32 +179,20 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
 
       const defaultName = `${selectedRoom?.name || "Salle"} - ${firstTeacher?.last_name || "Prof"}`
 
-      console.log("[v0] Creating sub-room with data:", {
-        room_id: formData.roomId,
-        name: formData.customName || defaultName,
-        teacher_id: formData.selectedTeachers[0],
-        establishment_id: establishmentId,
-      })
-
       // Créer la sous-salle
       const { data: subRoom, error: subRoomError } = await supabase
         .from("sub_rooms")
         .insert({
           room_id: formData.roomId,
-          name: formData.customName || defaultName,
+          name: formData.customName || defaultName, // Utiliser customName ou un nom par défaut
           custom_name: formData.customName || null,
-          teacher_id: formData.selectedTeachers[0],
+          teacher_id: formData.selectedTeachers[0], // Premier prof comme prof principal
           establishment_id: establishmentId,
         })
         .select()
         .single()
 
-      if (subRoomError) {
-        console.error("[v0] Error creating sub-room:", subRoomError)
-        throw subRoomError
-      }
-
-      console.log("[v0] Sub-room created:", subRoom)
+      if (subRoomError) throw subRoomError
 
       // Si salle collaborative, ajouter tous les profs dans sub_room_teachers
       if (formData.isCollaborative && formData.selectedTeachers.length > 0) {
@@ -220,14 +201,9 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
           teacher_id: teacherId,
         }))
 
-        console.log("[v0] Inserting teacher links:", teacherLinks)
-
         const { error: teachersError } = await supabase.from("sub_room_teachers").insert(teacherLinks)
 
-        if (teachersError) {
-          console.error("[v0] Error inserting teachers:", teachersError)
-          throw teachersError
-        }
+        if (teachersError) throw teachersError
       }
 
       // Ajouter les classes
@@ -236,19 +212,9 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         class_id: classId,
       }))
 
-      console.log("[v0] Inserting class links:", classLinks)
-
       const { error: classesError } = await supabase.from("sub_room_classes").insert(classLinks)
 
-      if (classesError) {
-        console.error("[v0] Error inserting classes:", classesError)
-        throw classesError
-      }
-
-      toast({
-        title: "Succès",
-        description: "Sous-salle créée avec succès",
-      })
+      if (classesError) throw classesError
 
       // Réinitialiser le formulaire
       setFormData({
@@ -262,13 +228,8 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
 
       onSuccess()
       onOpenChange(false)
-    } catch (error: any) {
-      console.error("[v0] Error creating sub-room:", error)
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la création de la sous-salle",
-        variant: "destructive",
-      })
+    } catch (error) {
+      console.error("Error creating sub-room:", error)
     } finally {
       setIsLoading(false)
     }
