@@ -67,7 +67,6 @@ export function SubRoomDialog({
 
       const supabase = createClient()
 
-      // Get classes taught by selected teachers
       const { data: teacherClasses } = await supabase
         .from("teacher_classes")
         .select("class_id")
@@ -75,7 +74,7 @@ export function SubRoomDialog({
 
       if (teacherClasses) {
         const classIds = teacherClasses.map((tc) => tc.class_id)
-        const filtered = availableClasses.filter((c) => classIds.includes(c.id))
+        const filtered = availableClasses.filter((c) => classIds.includes(c.id) && !c.is_level)
         setFilteredClasses(filtered)
       }
     }

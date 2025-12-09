@@ -496,19 +496,18 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
     if (!room) return "w-16 h-16"
     const columnCount = room.config.columns.length
 
-    // Fewer columns = larger tables, more columns = smaller tables
-    if (columnCount <= 2) return "w-20 h-20 md:w-24 md:h-24"
-    if (columnCount <= 4) return "w-16 h-16 md:w-20 md:h-20"
-    return "w-12 h-12 md:w-16 md:h-16"
+    if (columnCount <= 2) return "w-24 h-24 lg:w-32 lg:h-32"
+    if (columnCount <= 4) return "w-20 h-20 lg:w-24 lg:h-24"
+    return "w-16 h-16 lg:w-20 lg:h-20"
   }
 
   const getResponsiveSeatSize = () => {
     if (!room) return "w-8 h-8"
     const columnCount = room.config.columns.length
 
-    if (columnCount <= 2) return "w-10 h-10 md:w-12 md:h-12"
-    if (columnCount <= 4) return "w-8 h-8 md:w-10 md:h-10"
-    return "w-6 h-6 md:w-8 md:h-8"
+    if (columnCount <= 2) return "w-12 h-12 lg:w-14 lg:h-14"
+    if (columnCount <= 4) return "w-10 h-10 lg:w-12 lg:h-12"
+    return "w-8 h-8 lg:w-10 lg:h-10"
   }
 
   if (!room) {

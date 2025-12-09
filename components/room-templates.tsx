@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js"
+
 export interface RoomTemplate {
   id: string
   name: string
@@ -121,3 +123,73 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
     boardPosition: "top",
   },
 ]
+
+export async function loadCustomTemplates(establishmentId: string) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from("custom_templates")
+    .select("*")
+    .eq("establishment_id", establishmentId)
+    .order("is_pinned", { ascending: false })
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("[v0] Error loading custom templates:", error)
+    return []
+  }
+
+  return data.map((template: any) => ({
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    totalSeats: template.total_seats,
+    columns: template.columns,
+    boardPosition: template.board_position,
+    isCustom: true,
+    isPinned: template.is_pinned,
+    createdBy: template.created_by,
+    establishmentId: template.establishment_id,
+  }))
+}
+
+export async function createCustomTemplate(template: Omit<RoomTemplate, "id">, userId: string) {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from("custom_templates")
+    .insert({
+      name: template.name,
+      description: template.description,
+      total_seats: template.totalSeats,
+      columns: template.columns,
+      board_position: template.boardPosition,
+      establishment_id: template.establishmentId,
+      created_by: userId,
+      is_pinned: template.isPinned || false,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function toggleTemplatePin(templateId: string) {
+  const supabase = createClient()
+
+  const { data: currentTemplate } = await supabase
+    .from("custom_templates")
+    .select("is_pinned")
+    .eq("id", templateId)
+    .single()
+
+  if (!currentTemplate) throw new Error("Template not found")
+
+  const { error } = await supabase
+    .from("custom_templates")
+    .update({ is_pinned: !currentTemplate.is_pinned })
+    .eq("id", templateId)
+
+  if (error) throw error
+}

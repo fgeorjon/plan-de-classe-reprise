@@ -184,7 +184,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
         .from("classes")
         .select("*")
         .eq("establishment_id", establishmentId)
-        .neq("is_level", true) // Exclude custom levels
+        .eq("is_level", false) // Only show actual classes, not custom levels
 
       console.log("[v0] Vie scolaire - Teachers:", allTeachers?.length, "Classes:", allClasses?.length)
 
@@ -241,9 +241,9 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
       }
     }
 
-    // Load classes
+    // Load classes - filter out custom levels
     if (classIds.length > 0) {
-      const { data: userClasses } = await supabase.from("classes").select("*").in("id", classIds)
+      const { data: userClasses } = await supabase.from("classes").select("*").in("id", classIds).eq("is_level", false) // Exclude custom levels
 
       console.log("[v0] User classes loaded:", userClasses?.length)
       if (userClasses) setAvailableClasses(userClasses)
