@@ -53,6 +53,14 @@ interface SubRoom {
   created_at: string
   rooms: { name: string; code: string }
   teachers: { first_name: string; last_name: string }
+  sub_room_classes: {
+    class_id: string
+    classes: { id: string; name: string; students: { id: string; first_name: string; last_name: string }[] }[]
+  }
+  sub_room_teachers: {
+    teacher_id: string
+    teachers: { id: string; first_name: string; last_name: string; subject: string }[]
+  }[]
 }
 
 interface SeatingPlanManagementProps {
@@ -153,7 +161,19 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
       .select(`
         *,
         rooms(name, code),
-        teachers(first_name, last_name)
+        teachers(first_name, last_name),
+        sub_room_classes(
+          class_id,
+          classes(
+            id,
+            name,
+            students(id, first_name, last_name)
+          )
+        ),
+        sub_room_teachers(
+          teacher_id,
+          teachers(id, first_name, last_name, subject)
+        )
       `)
       .eq("establishment_id", establishmentId)
 
@@ -164,6 +184,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
     }
 
     const { data: subRoomsData } = await subRoomsQuery.order("created_at", { ascending: false })
+    console.log("[v0] Fetched sub-rooms with full data:", subRoomsData)
     if (subRoomsData) setSubRooms(subRoomsData)
 
     await setAvailableOptions(supabase)
@@ -295,7 +316,19 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
       .select(`
         *,
         rooms(name, code),
-        teachers(first_name, last_name)
+        teachers(first_name, last_name),
+        sub_room_classes(
+          class_id,
+          classes(
+            id,
+            name,
+            students(id, first_name, last_name)
+          )
+        ),
+        sub_room_teachers(
+          teacher_id,
+          teachers(id, first_name, last_name, subject)
+        )
       `)
       .eq("establishment_id", establishmentId)
 
@@ -306,6 +339,9 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
     }
 
     const { data: subRoomsData } = await subRoomsQuery.order("created_at", { ascending: false })
+
+    console.log("[v0] Fetched sub-rooms with full data:", subRoomsData)
+
     if (subRoomsData) setSubRooms(subRoomsData)
   }
 
@@ -496,7 +532,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
                   />
                   <div className="flex-1">
                     <CardTitle className="text-lg">{subRoom.name}</CardTitle>
-                    <CardDescription className="mt-1 text-sm">{subRoom.description}</CardDescription>
+                    <CardDescription className="mt-1 text-sm">{subRoom.custom_name}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
