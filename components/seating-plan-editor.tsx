@@ -532,24 +532,24 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
   }
 
   const getResponsiveTableSize = () => {
-    if (!room) return "w-64 h-48"
+    if (!room) return "w-32 h-24"
 
     const cols = room.config.columns.length
 
-    if (cols <= 2) return "w-72 h-52"
-    if (cols <= 4) return "w-64 h-48"
-    return "w-56 h-44"
+    if (cols <= 2) return "w-36 h-26"
+    if (cols <= 4) return "w-32 h-24"
+    return "w-28 h-22"
   }
 
   const getResponsiveSeatSize = () => {
-    if (!room) return "w-16 h-16"
+    if (!room) return "w-8 h-8"
 
     const cols = room.config.columns.length
 
-    // Places plus grandes et carrées
-    if (cols <= 2) return "w-20 h-20"
-    if (cols <= 4) return "w-18 h-18"
-    return "w-16 h-16"
+    // Places plus petites et carrées
+    if (cols <= 2) return "w-10 h-10"
+    if (cols <= 4) return "w-9 h-9"
+    return "w-8 h-8"
   }
 
   const getResponsiveGap = () => {
