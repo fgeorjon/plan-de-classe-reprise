@@ -527,21 +527,53 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
   const getTableStyle = () => {
     return {
       backgroundColor: "#FFFFFF", // White tables
-      borderColor: "#8B7355", // Brown border
+      borderColor: "#000000", // Black border
     }
+  }
+
+  const getResponsiveTableSize = () => {
+    if (!room) return "w-48 h-48"
+
+    const cols = room.config.columns.length
+
+    // Tables plus carrées et proportionnées
+    if (cols <= 2) return "w-56 h-56"
+    if (cols <= 4) return "w-48 h-48"
+    return "w-44 h-44"
+  }
+
+  const getResponsiveSeatSize = () => {
+    if (!room) return "w-16 h-16"
+
+    const cols = room.config.columns.length
+
+    // Places plus grandes et carrées
+    if (cols <= 2) return "w-20 h-20"
+    if (cols <= 4) return "w-18 h-18"
+    return "w-16 h-16"
+  }
+
+  const getResponsiveGap = () => {
+    if (!room) return "gap-4"
+    const columnCount = room.config.columns.length
+
+    if (columnCount <= 2) return "gap-6 md:gap-8"
+    if (columnCount <= 4) return "gap-4 md:gap-6"
+    return "gap-3 md:gap-4"
   }
 
   const getSeatStyle = (isOccupied: boolean) => {
     if (isOccupied) {
       return {
-        backgroundColor: "#000000", // Black background for occupied seats
+        backgroundColor: "#000000", // Black for students assigned
         borderColor: "#000000",
         color: "#FFFFFF", // White text
       }
     }
     return {
-      backgroundColor: "#F3F4F6", // Light gray for empty seats
+      backgroundColor: "#E5E7EB", // Light gray for empty seats
       borderColor: "#D1D5DB",
+      color: "#9CA3AF", // Seat numbers in gray
     }
   }
 
@@ -573,35 +605,6 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
     // Add current seat index (+1 to start at 1)
     seatNumber += seatIndex + 1
     return seatNumber
-  }
-
-  const getResponsiveTableSize = () => {
-    if (!room) return "w-40 h-32"
-
-    const cols = room.config.columns.length
-
-    if (cols <= 2) return "w-48 min-h-[12rem]" // Tables carrées pour 2 colonnes
-    if (cols <= 4) return "w-44 min-h-[11rem]" // Tables moyennes pour 3-4 colonnes
-    return "w-40 min-h-[10rem]" // Petites tables pour 5+ colonnes
-  }
-
-  const getResponsiveSeatSize = () => {
-    if (!room) return "w-14 h-14"
-
-    const cols = room.config.columns.length
-
-    if (cols <= 2) return "w-20 h-20" // Large seats
-    if (cols <= 4) return "w-16 h-16" // Medium seats
-    return "w-14 h-14" // Small seats
-  }
-
-  const getResponsiveGap = () => {
-    if (!room) return "gap-4"
-    const columnCount = room.config.columns.length
-
-    if (columnCount <= 2) return "gap-6 md:gap-8"
-    if (columnCount <= 4) return "gap-4 md:gap-6"
-    return "gap-3 md:gap-4"
   }
 
   if (!room) {
@@ -760,10 +763,10 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                         {Array.from({ length: column.tables }).map((_, tableIndex) => (
                           <div
                             key={tableIndex}
-                            className={`relative ${getResponsiveTableSize()} rounded-lg border-2 bg-white dark:bg-gray-800`}
+                            className={`relative ${getResponsiveTableSize()} rounded-lg border-2 flex items-center justify-center`}
                             style={{
-                              borderColor: "#8B7355",
-                              aspectRatio: "auto",
+                              backgroundColor: "#FFFFFF", // Tables blanches
+                              borderColor: "#000000", // Bordure noire
                             }}
                             onDragOver={handleDragOver}
                             onDrop={(e) => {
@@ -784,7 +787,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                                         : column.seatsPerTable === 6
                                           ? "grid-cols-3"
                                           : "grid-cols-2"
-                              } gap-2 p-4 place-items-center w-full h-full`}
+                              } gap-3 p-4 place-items-center w-full h-full`}
                             >
                               {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => {
                                 const seatNumber = getSeatNumber(colIndex, tableIndex, seatIndex)
@@ -801,19 +804,15 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                                     onTouchEnd={(e) => handleTouchEnd(e, seatNumber)}
                                     onClick={() => !student && handleSeatClick(seatNumber)}
                                     className={`
-                                      aspect-square rounded-lg border-2 flex items-center justify-center relative
+                                      ${getResponsiveSeatSize()} rounded-lg border-2 flex items-center justify-center relative
                                       transition-all
-                                      ${
-                                        student
-                                          ? "bg-black dark:bg-white border-black dark:border-white cursor-move hover:shadow-lg"
-                                          : "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
-                                      }
+                                      ${student ? "cursor-move hover:shadow-lg" : "cursor-pointer hover:opacity-80"}
                                     `}
                                     style={getSeatStyle(isOccupied)}
                                   >
                                     {student ? (
                                       <>
-                                        <span className="text-white text-[10px] sm:text-xs font-semibold">
+                                        <span className="text-white text-xs font-semibold">
                                           {student.last_name.substring(0, 1)}.{student.first_name.substring(0, 1)}
                                         </span>
                                         <button
@@ -824,7 +823,7 @@ export function SeatingPlanEditor({ subRoom, onBack }: SeatingPlanEditorProps) {
                                         </button>
                                       </>
                                     ) : (
-                                      <span className="text-gray-400 text-[10px] sm:text-xs">{seatNumber}</span>
+                                      <span className="text-xs">{seatNumber}</span>
                                     )}
                                   </div>
                                 )

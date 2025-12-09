@@ -56,6 +56,7 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
     selectedTeachers: [] as string[],
     selectedClasses: [] as string[],
     isCollaborative: false,
+    isMultiClass: false, // Ajout de la case multi-classes
   })
 
   const supabase = createClient()
@@ -77,55 +78,94 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
       if (roomsRes.data) setRooms(roomsRes.data)
       if (teachersRes.data) setTeachers(teachersRes.data)
 
-      // Exclure les niveaux personnalisés (is_level = true)
       if (classesRes.data) {
         const filteredClasses = classesRes.data.filter((c: Class) => !c.is_level)
         setClasses(filteredClasses)
       }
     } catch (error) {
-      console.error("Error fetching data:", error)
+      console.error("[v0] Error fetching data:", error)
     }
   }
 
   const handleToggleTeacher = (teacherId: string) => {
     setFormData((prev) => {
-      const newTeachers = prev.selectedTeachers.includes(teacherId)
-        ? prev.selectedTeachers.filter((id) => id !== teacherId)
-        : [...prev.selectedTeachers, teacherId]
+      let newTeachers: string[]
+
+      if (prev.isCollaborative) {
+        // Mode multi-profs : permettre plusieurs sélections
+        newTeachers = prev.selectedTeachers.includes(teacherId)
+          ? prev.selectedTeachers.filter((id) => id !== teacherId)
+          : [...prev.selectedTeachers, teacherId]
+      } else {
+        // Mode simple : un seul prof
+        newTeachers = prev.selectedTeachers.includes(teacherId) ? [] : [teacherId]
+      }
 
       return {
         ...prev,
         selectedTeachers: newTeachers,
-        // Réinitialiser les classes quand on change les profs
-        selectedClasses: [],
+        selectedClasses: [], // Réinitialiser les classes
       }
     })
   }
 
   const handleToggleClass = (classId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedClasses: prev.selectedClasses.includes(classId)
-        ? prev.selectedClasses.filter((id) => id !== classId)
-        : [...prev.selectedClasses, classId],
-    }))
+    setFormData((prev) => {
+      let newClasses: string[]
+
+      if (prev.isMultiClass) {
+        // Mode multi-classes : permettre plusieurs sélections
+        newClasses = prev.selectedClasses.includes(classId)
+          ? prev.selectedClasses.filter((id) => id !== classId)
+          : [...prev.selectedClasses, classId]
+      } else {
+        // Mode simple : une seule classe
+        newClasses = prev.selectedClasses.includes(classId) ? [] : [classId]
+      }
+
+      return {
+        ...prev,
+        selectedClasses: newClasses,
+      }
+    })
   }
 
-  // Filtrer les classes selon les professeurs sélectionnés
-  const getFilteredClasses = () => {
+  const getFilteredClasses = async () => {
     if (formData.selectedTeachers.length === 0) {
       return []
     }
 
-    // Récupérer toutes les classes des professeurs sélectionnés
-    return classes.filter((cls) => {
-      // Ici on devrait vérifier dans teacher_classes
-      // Pour l'instant, on retourne toutes les classes
-      return true
-    })
+    try {
+      // Récupérer les relations teacher_classes pour les profs sélectionnés
+      const { data: teacherClassesData, error } = await supabase
+        .from("teacher_classes")
+        .select("class_id")
+        .in("teacher_id", formData.selectedTeachers)
+
+      if (error) {
+        console.error("[v0] Error fetching teacher_classes:", error)
+        return []
+      }
+
+      const classIds = teacherClassesData?.map((tc) => tc.class_id) || []
+
+      // Filtrer les classes qui sont assignées aux profs sélectionnés
+      return classes.filter((cls) => classIds.includes(cls.id))
+    } catch (error) {
+      console.error("[v0] Error filtering classes:", error)
+      return []
+    }
   }
 
-  const filteredClasses = getFilteredClasses()
+  const [filteredClasses, setFilteredClasses] = useState<Class[]>([])
+
+  useEffect(() => {
+    if (formData.selectedTeachers.length > 0) {
+      getFilteredClasses().then(setFilteredClasses)
+    } else {
+      setFilteredClasses([])
+    }
+  }, [formData.selectedTeachers])
 
   const handleCreate = async () => {
     if (!formData.roomId || formData.selectedTeachers.length === 0 || formData.selectedClasses.length === 0) {
@@ -177,6 +217,7 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         selectedTeachers: [],
         selectedClasses: [],
         isCollaborative: false,
+        isMultiClass: false,
       })
 
       onSuccess()
@@ -224,9 +265,29 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
             />
           </div>
 
+          <div className="flex items-center gap-2 border rounded-md p-3">
+            <Checkbox
+              id="collaborative"
+              checked={formData.isCollaborative}
+              onCheckedChange={(checked) => {
+                setFormData({
+                  ...formData,
+                  isCollaborative: checked as boolean,
+                  selectedTeachers: [], // Réinitialiser
+                })
+              }}
+            />
+            <Label htmlFor="collaborative" className="cursor-pointer text-sm">
+              Salle collaborative (multi-professeurs)
+            </Label>
+          </div>
+
           {/* Sélection des professeurs */}
           <div className="space-y-2">
-            <Label>Professeur(s)</Label>
+            <Label>
+              Professeur{formData.isCollaborative ? "s" : ""}
+              {!formData.isCollaborative && <span className="text-xs text-muted-foreground ml-1">(1 seul)</span>}
+            </Label>
             {teachers.length === 0 ? (
               <div className="text-sm text-muted-foreground border rounded-md p-4">Aucun professeur disponible</div>
             ) : (
@@ -247,23 +308,31 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
             )}
           </div>
 
-          {/* Case salle collaborative */}
-          {formData.selectedTeachers.length > 1 && (
-            <div className="flex items-center gap-2 border rounded-md p-4">
+          {formData.selectedTeachers.length > 0 && (
+            <div className="flex items-center gap-2 border rounded-md p-3">
               <Checkbox
-                id="collaborative"
-                checked={formData.isCollaborative}
-                onCheckedChange={(checked) => setFormData({ ...formData, isCollaborative: checked as boolean })}
+                id="multiclass"
+                checked={formData.isMultiClass}
+                onCheckedChange={(checked) => {
+                  setFormData({
+                    ...formData,
+                    isMultiClass: checked as boolean,
+                    selectedClasses: [], // Réinitialiser
+                  })
+                }}
               />
-              <Label htmlFor="collaborative" className="cursor-pointer font-medium">
-                Salle collaborative (multi-professeurs)
+              <Label htmlFor="multiclass" className="cursor-pointer text-sm">
+                Multi-classes
               </Label>
             </div>
           )}
 
           {/* Sélection des classes */}
           <div className="space-y-2">
-            <Label>Classes</Label>
+            <Label>
+              Classe{formData.isMultiClass ? "s" : ""}
+              {!formData.isMultiClass && <span className="text-xs text-muted-foreground ml-1">(1 seule)</span>}
+            </Label>
             {formData.selectedTeachers.length === 0 ? (
               <div className="border border-orange-300 bg-orange-50 dark:bg-orange-950 rounded-md p-4">
                 <p className="text-sm text-orange-800 dark:text-orange-200 flex items-center gap-2">
