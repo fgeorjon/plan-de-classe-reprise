@@ -43,6 +43,8 @@ interface Student {
   last_name: string
   class_name: string
   role: string
+  is_delegate?: boolean
+  is_eco_delegate?: boolean
 }
 
 interface Room {
@@ -107,7 +109,7 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
 
     const { data: studentsData } = await supabase
       .from("students")
-      .select("id, first_name, last_name, class_name, role")
+      .select("id, first_name, last_name, class_name, role, is_delegate, is_eco_delegate")
       .in("class_id", subRoom.class_ids)
       .order("last_name")
 
@@ -194,8 +196,7 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
     setDraggedStudent(null)
   }
 
-  const handleSeatClick = (seatNumber: number) => {
-    const studentId = assignments.get(seatNumber)
+  const handleSeatClick = (seatNumber: number, studentId?: string) => {
     const student = studentId ? students.find((s) => s.id === studentId) : undefined
 
     if (student) {
@@ -561,6 +562,29 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
     return `${student.last_name.charAt(0)}.${student.first_name.charAt(0)}`.toUpperCase()
   }
 
+  const renderDelegateBadges = (student: Student) => {
+    return (
+      <div className="absolute -top-1 -right-1 flex gap-0.5">
+        {student.is_delegate && (
+          <div
+            className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-[8px] font-bold text-white shadow-sm border border-white"
+            title="Délégué"
+          >
+            D
+          </div>
+        )}
+        {student.is_eco_delegate && (
+          <div
+            className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center text-[8px] font-bold text-white shadow-sm border border-white"
+            title="Éco-délégué"
+          >
+            E
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const calculateSeatNumber = (colIndex: number, tableIndex: number, seatIndex: number) => {
     if (!room) return 0
     let seatNumber = 0
@@ -737,23 +761,34 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
                               onDrop={(e) => handleDrop(e, seatNumber)}
                               onClick={() => handleSeatClick(seatNumber)}
                               className={cn(
-                                "flex h-10 w-10 cursor-pointer items-center justify-center rounded text-xs font-medium transition-all",
+                                "relative flex h-10 w-10 cursor-pointer items-center justify-center rounded text-xs font-medium transition-all",
                                 student
                                   ? "bg-black text-white hover:bg-gray-800"
                                   : "border-2 border-gray-300 bg-gray-100 hover:border-blue-400 hover:bg-blue-50",
                               )}
                             >
-                              {student ? (
-                                <span
-                                  className="truncate text-center"
-                                  title={`${student.last_name} ${student.first_name}`}
-                                >
-                                  {student.last_name.substring(0, 1)}
-                                  {student.first_name.substring(0, 1)}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">{seatNumber}</span>
+                              {student && (
+                                <>
+                                  <div
+                                    className="relative flex h-10 w-10 cursor-move items-center justify-center rounded-full bg-black text-xs font-bold text-white shadow-md"
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, student.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSeatClick(seatNumber, student.id)
+                                    }}
+                                  >
+                                    {getInitials(student)}
+                                    {renderDelegateBadges(student)}
+                                  </div>
+                                  <span className="mt-1 text-center text-[10px] leading-tight text-black">
+                                    {student.last_name}
+                                    <br />
+                                    {student.first_name}
+                                  </span>
+                                </>
                               )}
+                              {!student && <span className="text-gray-400">{seatNumber}</span>}
                             </div>
                           )
                         })}
