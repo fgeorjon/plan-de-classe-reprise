@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
 import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
+import { CreateTemplateDialog } from "@/components/create-template-dialog"
 import type { RoomTemplate } from "@/components/room-templates"
 import type { UserRole } from "@/lib/types"
 
@@ -84,6 +85,7 @@ export function RoomsManagement({
   const [isLoading, setIsLoading] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false)
   const [creationMode, setCreationMode] = useState<"template" | "custom" | null>(null)
 
   const [formData, setFormData] = useState({
@@ -423,6 +425,19 @@ export function RoomsManagement({
     setIsAddDialogOpen(true)
   }
 
+  const fetchRooms = async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("establishment_id", establishmentId)
+      .order("created_at", { ascending: false })
+
+    if (data) {
+      setRooms(data)
+    }
+  }
+
   const isVieScolaire = userRole === "vie-scolaire"
   const canModifyRooms = isVieScolaire
   const canViewRooms = true // Everyone can view rooms
@@ -666,252 +681,304 @@ export function RoomsManagement({
           </Card>
         )}
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Créer une salle</DialogTitle>
-              <DialogDescription>Configurez la disposition de la salle de classe</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nom de la salle</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="ex: Salle B23"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">Code de la salle</Label>
-                  <Input
-                    id="code"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="ex: B23"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="boardPosition">Position du tableau</Label>
-                <Select
-                  value={formData.boardPosition}
-                  onValueChange={(value: "top" | "bottom" | "left" | "right") =>
-                    setFormData({ ...formData, boardPosition: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="top">Haut</SelectItem>
-                    <SelectItem value="bottom">Bas</SelectItem>
-                    <SelectItem value="left">Gauche</SelectItem>
-                    <SelectItem value="right">Droite</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-medium">Configuration des colonnes</h3>
-                  <div className="text-sm text-muted-foreground">
-                    Total: {calculateTotalSeats()} places (max 350) • Largeur: {calculateTotalWidth()} (max 10)
-                    {calculateTotalSeats() > 350 && <span className="text-red-500 ml-2">(Capacité dépassée)</span>}
-                    {calculateTotalWidth() > 10 && <span className="text-red-500 ml-2">(Largeur dépassée)</span>}
+        <div className="grid gap-6">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Créer une salle</DialogTitle>
+                <DialogDescription>Configurez la disposition de la salle de classe</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nom de la salle</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="ex: Salle B23"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="code">Code de la salle</Label>
+                    <Input
+                      id="code"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      placeholder="ex: B23"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {formData.columns.map((column, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
-                      <div className="col-span-1 font-medium text-center">{index + 1}</div>
-                      <div className="col-span-5">
-                        <Label htmlFor={`tables-${index}`}>Nombre de tables</Label>
-                        <Input
-                          id={`tables-${index}`}
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={column.tables}
-                          onChange={(e) => handleColumnChange(index, "tables", Number.parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                      <div className="col-span-5">
-                        <Label htmlFor={`seats-${index}`}>Places par table</Label>
-                        <Input
-                          id={`seats-${index}`}
-                          type="number"
-                          min="1"
-                          max="7"
-                          value={column.seatsPerTable}
-                          onChange={(e) =>
-                            handleColumnChange(index, "seatsPerTable", Number.parseInt(e.target.value) || 1)
-                          }
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveColumn(index)}
-                          disabled={formData.columns.length <= 1}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
+                <div className="space-y-2">
+                  <Label htmlFor="boardPosition">Position du tableau</Label>
+                  <Select
+                    value={formData.boardPosition}
+                    onValueChange={(value: "top" | "bottom" | "left" | "right") =>
+                      setFormData({ ...formData, boardPosition: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top">Haut</SelectItem>
+                      <SelectItem value="bottom">Bas</SelectItem>
+                      <SelectItem value="left">Gauche</SelectItem>
+                      <SelectItem value="right">Droite</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-medium">Configuration des colonnes</h3>
+                    <div className="text-sm text-muted-foreground">
+                      Total: {calculateTotalSeats()} places (max 350) • Largeur: {calculateTotalWidth()} (max 10)
+                      {calculateTotalSeats() > 350 && <span className="text-red-500 ml-2">(Capacité dépassée)</span>}
+                      {calculateTotalWidth() > 10 && <span className="text-red-500 ml-2">(Largeur dépassée)</span>}
                     </div>
-                  ))}
+                  </div>
 
-                  <Button variant="outline" onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter une colonne
-                  </Button>
+                  <div className="space-y-4">
+                    {formData.columns.map((column, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
+                        <div className="col-span-1 font-medium text-center">{index + 1}</div>
+                        <div className="col-span-5">
+                          <Label htmlFor={`tables-${index}`}>Nombre de tables</Label>
+                          <Input
+                            id={`tables-${index}`}
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={column.tables}
+                            onChange={(e) => handleColumnChange(index, "tables", Number.parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="col-span-5">
+                          <Label htmlFor={`seats-${index}`}>Places par table</Label>
+                          <Input
+                            id={`seats-${index}`}
+                            type="number"
+                            min="1"
+                            max="7"
+                            value={column.seatsPerTable}
+                            onChange={(e) =>
+                              handleColumnChange(index, "seatsPerTable", Number.parseInt(e.target.value) || 1)
+                            }
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveColumn(index)}
+                            disabled={formData.columns.length <= 1}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+
+                    <Button variant="outline" onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Ajouter une colonne
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleAddRoom} disabled={isLoading}>
-                {isLoading ? "Création..." : "Créer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button onClick={handleAddRoom} disabled={isLoading}>
+                  {isLoading ? "Création..." : "Créer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Modifier la salle</DialogTitle>
-              <DialogDescription>Modifiez la configuration de la salle de classe</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nom de la salle</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="ex: Salle B23"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">Code de la salle</Label>
-                  <Input
-                    id="code"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="ex: B23"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="boardPosition">Position du tableau</Label>
-                <Select
-                  value={formData.boardPosition}
-                  onValueChange={(value: "top" | "bottom" | "left" | "right") =>
-                    setFormData({ ...formData, boardPosition: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="top">Haut</SelectItem>
-                    <SelectItem value="bottom">Bas</SelectItem>
-                    <SelectItem value="left">Gauche</SelectItem>
-                    <SelectItem value="right">Droite</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-medium">Configuration des colonnes</h3>
-                  <div className="text-sm text-muted-foreground">
-                    Total: {calculateTotalSeats()} places (max 350) • Largeur: {calculateTotalWidth()} (max 10)
-                    {calculateTotalSeats() > 350 && <span className="text-red-500 ml-2">(Capacité dépassée)</span>}
-                    {calculateTotalWidth() > 10 && <span className="text-red-500 ml-2">(Largeur dépassée)</span>}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Modifier la salle</DialogTitle>
+                <DialogDescription>Modifiez la configuration de la salle de classe</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nom de la salle</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="ex: Salle B23"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="code">Code de la salle</Label>
+                    <Input
+                      id="code"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      placeholder="ex: B23"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {formData.columns.map((column, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
-                      <div className="col-span-1 font-medium text-center">{index + 1}</div>
-                      <div className="col-span-5">
-                        <Label htmlFor={`tables-${index}`}>Nombre de tables</Label>
-                        <Input
-                          id={`tables-${index}`}
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={column.tables}
-                          onChange={(e) => handleColumnChange(index, "tables", Number.parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                      <div className="col-span-5">
-                        <Label htmlFor={`seats-${index}`}>Places par table</Label>
-                        <Input
-                          id={`seats-${index}`}
-                          type="number"
-                          min="1"
-                          max="7"
-                          value={column.seatsPerTable}
-                          onChange={(e) =>
-                            handleColumnChange(index, "seatsPerTable", Number.parseInt(e.target.value) || 1)
-                          }
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveColumn(index)}
-                          disabled={formData.columns.length <= 1}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <Label htmlFor="boardPosition">Position du tableau</Label>
+                  <Select
+                    value={formData.boardPosition}
+                    onValueChange={(value: "top" | "bottom" | "left" | "right") =>
+                      setFormData({ ...formData, boardPosition: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top">Haut</SelectItem>
+                      <SelectItem value="bottom">Bas</SelectItem>
+                      <SelectItem value="left">Gauche</SelectItem>
+                      <SelectItem value="right">Droite</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <Button variant="outline" onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter une colonne
-                  </Button>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-medium">Configuration des colonnes</h3>
+                    <div className="text-sm text-muted-foreground">
+                      Total: {calculateTotalSeats()} places (max 350) • Largeur: {calculateTotalWidth()} (max 10)
+                      {calculateTotalSeats() > 350 && <span className="text-red-500 ml-2">(Capacité dépassée)</span>}
+                      {calculateTotalWidth() > 10 && <span className="text-red-500 ml-2">(Largeur dépassée)</span>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {formData.columns.map((column, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
+                        <div className="col-span-1 font-medium text-center">{index + 1}</div>
+                        <div className="col-span-5">
+                          <Label htmlFor={`tables-${index}`}>Nombre de tables</Label>
+                          <Input
+                            id={`tables-${index}`}
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={column.tables}
+                            onChange={(e) => handleColumnChange(index, "tables", Number.parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="col-span-5">
+                          <Label htmlFor={`seats-${index}`}>Places par table</Label>
+                          <Input
+                            id={`seats-${index}`}
+                            type="number"
+                            min="1"
+                            max="7"
+                            value={column.seatsPerTable}
+                            onChange={(e) =>
+                              handleColumnChange(index, "seatsPerTable", Number.parseInt(e.target.value) || 1)
+                            }
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveColumn(index)}
+                            disabled={formData.columns.length <= 1}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+
+                    <Button variant="outline" onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Ajouter une colonne
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleEditRoom} disabled={isLoading}>
-                {isLoading ? "Modification..." : "Enregistrer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button onClick={handleEditRoom} disabled={isLoading}>
+                  {isLoading ? "Modification..." : "Enregistrer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        <DeleteConfirmationDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          onConfirm={handleDeleteRooms}
-          itemCount={roomsToDelete.length}
-          itemType="salle"
-        />
-        <TemplateSelectionDialog
-          open={isTemplateDialogOpen}
-          onOpenChange={setIsTemplateDialogOpen}
-          onSelectTemplate={handleSelectTemplate}
-        />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutTemplate className="h-5 w-5" />
+                Créer une nouvelle salle
+              </CardTitle>
+              <CardDescription>Utilisez un template prédéfini ou créez une configuration personnalisée</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => setIsCreateTemplateDialogOpen(true)}
+                  size="lg"
+                  variant="outline"
+                  className="border-purple-300 hover:bg-purple-50 hover:border-purple-400 dark:border-purple-700 dark:hover:bg-purple-900/20"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Créer un template
+                </Button>
+                <Button
+                  onClick={() => setIsTemplateDialogOpen(true)}
+                  size="lg"
+                  variant="outline"
+                  className="border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
+                >
+                  <LayoutTemplate className="mr-2 h-5 w-5" />
+                  Templates
+                </Button>
+                <Button
+                  onClick={handleCustomCreation}
+                  size="lg"
+                  variant="outline"
+                  className="border-blue-300 hover:bg-blue-50 hover:border-blue-400 dark:border-blue-700 dark:hover:bg-blue-900/20 bg-transparent"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Personnalisée
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <DeleteConfirmationDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onConfirm={handleDeleteRooms}
+            itemCount={roomsToDelete.length}
+            itemType="salle"
+          />
+          <TemplateSelectionDialog
+            open={isTemplateDialogOpen}
+            onOpenChange={setIsTemplateDialogOpen}
+            onSelectTemplate={handleSelectTemplate}
+            userId={userId}
+            establishmentId={establishmentId}
+          />
+          <CreateTemplateDialog
+            open={isCreateTemplateDialogOpen}
+            onOpenChange={setIsCreateTemplateDialogOpen}
+            onSuccess={fetchRooms}
+            userId={userId}
+            establishmentId={establishmentId}
+          />
+        </div>
       </div>
 
       <Toaster />

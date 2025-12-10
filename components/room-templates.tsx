@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
 export interface RoomTemplate {
   id: string
@@ -124,11 +124,15 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
   },
 ]
 
+function createClient() {
+  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+}
+
 export async function loadCustomTemplates(establishmentId: string) {
   const supabase = createClient()
 
   const { data, error } = await supabase
-    .from("custom_templates")
+    .from("custom_room_templates")
     .select("*")
     .eq("establishment_id", establishmentId)
     .order("is_pinned", { ascending: false })
@@ -144,7 +148,7 @@ export async function loadCustomTemplates(establishmentId: string) {
     name: template.name,
     description: template.description,
     totalSeats: template.total_seats,
-    columns: template.columns,
+    columns: template.config.columns,
     boardPosition: template.board_position,
     isCustom: true,
     isPinned: template.is_pinned,
@@ -153,20 +157,24 @@ export async function loadCustomTemplates(establishmentId: string) {
   }))
 }
 
-export async function createCustomTemplate(template: Omit<RoomTemplate, "id">, userId: string) {
+export async function createCustomTemplate(
+  template: Omit<RoomTemplate, "id">,
+  userId: string,
+  establishmentId: string,
+) {
   const supabase = createClient()
 
   const { data, error } = await supabase
-    .from("custom_templates")
+    .from("custom_room_templates")
     .insert({
       name: template.name,
       description: template.description,
       total_seats: template.totalSeats,
-      columns: template.columns,
+      config: { columns: template.columns },
       board_position: template.boardPosition,
-      establishment_id: template.establishmentId,
+      establishment_id: establishmentId,
       created_by: userId,
-      is_pinned: template.isPinned || false,
+      is_pinned: false,
     })
     .select()
     .single()
@@ -175,21 +183,41 @@ export async function createCustomTemplate(template: Omit<RoomTemplate, "id">, u
   return data
 }
 
-export async function toggleTemplatePin(templateId: string) {
+export async function toggleTemplatePin(templateId: string, establishmentId: string) {
   const supabase = createClient()
 
+  // Check current pinned count
+  const { data: pinnedTemplates } = await supabase
+    .from("custom_room_templates")
+    .select("id")
+    .eq("establishment_id", establishmentId)
+    .eq("is_pinned", true)
+
   const { data: currentTemplate } = await supabase
-    .from("custom_templates")
+    .from("custom_room_templates")
     .select("is_pinned")
     .eq("id", templateId)
     .single()
 
   if (!currentTemplate) throw new Error("Template not found")
 
+  // If trying to pin and already have 5 pinned, throw error
+  if (!currentTemplate.is_pinned && pinnedTemplates && pinnedTemplates.length >= 5) {
+    throw new Error("Maximum 5 templates can be pinned")
+  }
+
   const { error } = await supabase
-    .from("custom_templates")
+    .from("custom_room_templates")
     .update({ is_pinned: !currentTemplate.is_pinned })
     .eq("id", templateId)
+
+  if (error) throw error
+}
+
+export async function deleteCustomTemplate(templateId: string) {
+  const supabase = createClient()
+
+  const { error } = await supabase.from("custom_room_templates").delete().eq("id", templateId)
 
   if (error) throw error
 }
