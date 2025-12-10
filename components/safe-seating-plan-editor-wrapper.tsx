@@ -36,21 +36,23 @@ interface SafeSeatingPlanEditorWrapperProps {
 
 export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPlanEditorWrapperProps) {
   const [room, setRoom] = useState<Room | null>(null)
+  const [enrichedSubRoom, setEnrichedSubRoom] = useState<SubRoomProps | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadRoomData()
-  }, [subRoom.room_id])
+    loadData()
+  }, [subRoom.room_id, subRoom.id])
 
-  const loadRoomData = async () => {
-    console.log("[v0] SafeWrapper: Loading room data for:", subRoom.room_id)
+  const loadData = async () => {
+    console.log("[v0] SafeWrapper: Loading room and class data for sub-room:", subRoom.id)
     setIsLoading(true)
     setError(null)
 
     const supabase = createClient()
 
     try {
+      // Charger la salle
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select("*")
@@ -93,7 +95,33 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
         roomData.config.columns.length,
         "columns",
       )
+
+      const { data: classLinksData, error: classLinksError } = await supabase
+        .from("sub_room_classes")
+        .select("class_id")
+        .eq("sub_room_id", subRoom.id)
+
+      if (classLinksError) {
+        console.error("[v0] SafeWrapper: Error loading class links:", classLinksError)
+        setError(`Erreur lors du chargement des classes: ${classLinksError.message}`)
+        setIsLoading(false)
+        return
+      }
+
+      const classIds = classLinksData?.map((link) => link.class_id) || []
+      console.log("[v0] SafeWrapper: Class IDs loaded:", classIds)
+
+      if (classIds.length === 0) {
+        console.warn("[v0] SafeWrapper: No classes associated with this sub-room")
+      }
+
+      const enriched: SubRoomProps = {
+        ...subRoom,
+        class_ids: classIds,
+      }
+
       setRoom(roomData)
+      setEnrichedSubRoom(enriched)
       setIsLoading(false)
     } catch (err: any) {
       console.error("[v0] SafeWrapper: Unexpected error:", err)
@@ -120,7 +148,7 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
   }
 
   // Error state
-  if (error || !room) {
+  if (error || !room || !enrichedSubRoom) {
     return (
       <div className="fixed inset-0 bg-white dark:bg-black z-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-red-200 dark:border-red-900">
@@ -135,7 +163,7 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
               {error || "La configuration de la salle est introuvable"}
             </p>
             <div className="space-y-2">
-              <Button onClick={loadRoomData} variant="outline" className="w-full bg-transparent">
+              <Button onClick={loadData} variant="outline" className="w-full bg-transparent">
                 Réessayer
               </Button>
               <Button onClick={onBack} variant="ghost" className="w-full">
@@ -148,7 +176,6 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
     )
   }
 
-  // Success - render the editor with guaranteed valid room data
-  console.log("[v0] SafeWrapper: Rendering SeatingPlanEditor with validated room data")
-  return <SeatingPlanEditor subRoom={subRoom} room={room} onBack={onBack} />
+  console.log("[v0] SafeWrapper: Rendering SeatingPlanEditor with validated room data and class_ids")
+  return <SeatingPlanEditor subRoom={enrichedSubRoom} room={room} onBack={onBack} />
 }
