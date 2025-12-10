@@ -280,8 +280,8 @@ export function CreateSubRoomDialog({
 
   const displayedTeachers =
     formData.isCollaborative && isProfessor && currentTeacherId
-      ? teachers.filter((t) => t.id !== currentTeacherId)
-      : teachers
+      ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
+      : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -336,15 +336,39 @@ export function CreateSubRoomDialog({
             </div>
           )}
 
-          {(!isProfessor || formData.isCollaborative) && (
+          {!isProfessor && (
             <div className="space-y-2">
               <Label>
-                {isProfessor ? "Autres professeurs" : "Professeur"}
-                {!formData.isCollaborative && <span className="text-xs text-muted-foreground ml-1">(1 seul)</span>}
+                Professeur
+                <span className="text-xs text-muted-foreground ml-1">(1 seul)</span>
               </Label>
               {displayedTeachers.length === 0 ? (
+                <div className="text-sm text-muted-foreground border rounded-md p-4">Aucun professeur disponible</div>
+              ) : (
+                <div className="border rounded-md p-4 space-y-2 max-h-48 overflow-y-auto">
+                  {displayedTeachers.map((teacher) => (
+                    <div key={teacher.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`teacher-${teacher.id}`}
+                        checked={formData.selectedTeachers.includes(teacher.id)}
+                        onCheckedChange={() => handleToggleTeacher(teacher.id)}
+                      />
+                      <Label htmlFor={`teacher-${teacher.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                        {teacher.first_name} {teacher.last_name} - {teacher.subject}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isProfessor && formData.isCollaborative && (
+            <div className="space-y-2">
+              <Label>Autres professeurs</Label>
+              {displayedTeachers.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4">
-                  {isProfessor ? "Aucun autre professeur disponible" : "Aucun professeur disponible"}
+                  Aucun autre professeur disponible
                 </div>
               ) : (
                 <div className="border rounded-md p-4 space-y-2 max-h-48 overflow-y-auto">

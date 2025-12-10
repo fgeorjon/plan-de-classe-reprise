@@ -491,9 +491,8 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
         <div className="mb-6">
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-emerald-100 dark:scrollbar-thumb-emerald-700 dark:scrollbar-track-slate-800">
             {rooms.map((room) => {
-              const totalSeats = room.config?.columns
-                ? room.config.columns.reduce((total, col) => total + col.tables * col.seatsPerTable, 0)
-                : 0
+              const columns = room.config?.columns || []
+              const totalSeats = columns.reduce((total, col) => total + col.tables * col.seatsPerTable, 0)
               const isSelected = selectedRoomIds.includes(room.id)
 
               return (
@@ -547,7 +546,7 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
                           {room.code}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {room.config?.columns?.length || 0} col. • {totalSeats} places
+                          {columns.length} col. • {totalSeats} places
                         </span>
                       </div>
                     </div>

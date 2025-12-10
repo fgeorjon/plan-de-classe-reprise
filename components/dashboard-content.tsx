@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { clearAdminSession, isAdminSession } from "@/lib/admin-auth"
@@ -45,22 +45,6 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     username: "",
     password: "",
   })
-  const [canAccessSandbox, setCanAccessSandbox] = useState(true)
-
-  useEffect(() => {
-    async function checkSandboxPermission() {
-      if (profile.role === "delegue" || profile.role === "eco-delegue") {
-        const supabase = createClient()
-        const { data } = await supabase.from("profiles").select("can_create_subrooms").eq("id", profile.id).single()
-
-        if (data) {
-          setCanAccessSandbox(data.can_create_subrooms ?? true)
-        }
-      }
-    }
-
-    checkSandboxPermission()
-  }, [profile.id, profile.role])
 
   function generateStrongPassword(length = 8): string {
     const lowercase = "abcdefghijklmnopqrstuvwxyz"
@@ -638,25 +622,23 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
                 </CardContent>
               </Card>
 
-              {canAccessSandbox && (
-                <Card
-                  className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-orange-300 dark:hover:border-orange-600"
-                  onClick={() => router.push("/dashboard/sandbox")}
-                >
-                  <CardHeader className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center text-xl">
-                      <Lightbulb className="mr-3 h-6 w-6" />
-                      Bac à sable
-                    </CardTitle>
-                    <CardDescription className="text-orange-100">Créer des propositions</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Créez et proposez des plans de classe à vos professeurs.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+              <Card
+                className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-orange-300 dark:hover:border-orange-600"
+                onClick={() => router.push("/dashboard/sandbox")}
+              >
+                <CardHeader className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-t-lg">
+                  <CardTitle className="flex items-center text-xl">
+                    <Lightbulb className="mr-3 h-6 w-6" />
+                    Bac à sable
+                  </CardTitle>
+                  <CardDescription className="text-orange-100">Créer des propositions</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Créez et proposez des plans de classe à vos professeurs.
+                  </p>
+                </CardContent>
+              </Card>
             </>
           )}
         </motion.div>
