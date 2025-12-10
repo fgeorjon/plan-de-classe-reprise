@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import cn from "classnames"
+import { Search } from "lucide-react"
 
 interface Student {
   id: string
@@ -45,6 +46,7 @@ interface Student {
   role: string
   is_delegate?: boolean
   is_eco_delegate?: boolean
+  gender?: string
 }
 
 interface Room {
@@ -76,11 +78,10 @@ interface SeatAssignment {
 interface SeatingPlanEditorProps {
   subRoom: SubRoom
   room: Room
-  onClose?: () => void
   onBack?: () => void
 }
 
-export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPlanEditorProps) {
+export function SeatingPlanEditor({ subRoom, room, onBack }: SeatingPlanEditorProps) {
   const [students, setStudents] = useState<Student[]>([])
   const [assignments, setAssignments] = useState<Map<number, string>>(new Map())
   const [savedAssignments, setSavedAssignments] = useState<Map<number, string>>(new Map())
@@ -95,6 +96,9 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
   const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false)
   const [studentToRemove, setStudentToRemove] = useState<string | null>(null)
   const [dontShowAgain, setDontShowAgain] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [genderFilter, setGenderFilter] = useState<"all" | "M" | "F">("all")
+  const [delegateFilter, setDelegateFilter] = useState<"all" | "delegate" | "eco">("all")
 
   useEffect(() => {
     fetchData()
@@ -109,7 +113,7 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
 
     const { data: studentsData } = await supabase
       .from("students")
-      .select("id, first_name, last_name, class_name, role, is_delegate, is_eco_delegate")
+      .select("id, first_name, last_name, class_name, role, is_delegate, is_eco_delegate, gender")
       .in("class_id", subRoom.class_ids)
       .order("last_name")
 
@@ -595,12 +599,120 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
     return seatNumber
   }
 
+  const getFilteredUnassignedStudents = () => {
+    let filtered = getUnassignedStudents()
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        (s) =>
+          s.first_name.toLowerCase().includes(term) ||
+          s.last_name.toLowerCase().includes(term) ||
+          s.class_name?.toLowerCase().includes(term),
+      )
+    }
+
+    // Gender filter
+    if (genderFilter !== "all") {
+      filtered = filtered.filter((s) => s.gender === genderFilter)
+    }
+
+    // Delegate filter
+    if (delegateFilter === "delegate") {
+      filtered = filtered.filter((s) => s.is_delegate)
+    } else if (delegateFilter === "eco") {
+      filtered = filtered.filter((s) => s.is_eco_delegate)
+    }
+
+    return filtered
+  }
+
+  const handleCompleteRandom = () => {
+    const unassigned = getUnassignedStudents()
+    const availableSeats: number[] = []
+    const totalSeats = getTotalSeats()
+
+    for (let i = 1; i <= totalSeats; i++) {
+      if (!assignments.has(i)) {
+        availableSeats.push(i)
+      }
+    }
+
+    if (availableSeats.length === 0) {
+      toast({
+        title: "Aucune place disponible",
+        description: "Toutes les places sont déjà occupées",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const shuffledSeats = availableSeats.sort(() => Math.random() - 0.5)
+    const shuffledStudents = [...unassigned].sort(() => Math.random() - 0.5)
+
+    const newAssignments = new Map(assignments)
+
+    shuffledStudents.forEach((student, index) => {
+      if (index < shuffledSeats.length) {
+        newAssignments.set(shuffledSeats[index], student.id)
+      }
+    })
+
+    setAssignments(newAssignments)
+    toast({
+      title: "Complément aléatoire",
+      description: `${Math.min(shuffledStudents.length, shuffledSeats.length)} élève(s) placé(s) aléatoirement`,
+    })
+  }
+
+  const handleCompleteAlphabetical = (order: "asc" | "desc") => {
+    const unassigned = getUnassignedStudents()
+    const availableSeats: number[] = []
+    const totalSeats = getTotalSeats()
+
+    for (let i = 1; i <= totalSeats; i++) {
+      if (!assignments.has(i)) {
+        availableSeats.push(i)
+      }
+    }
+
+    if (availableSeats.length === 0) {
+      toast({
+        title: "Aucune place disponible",
+        description: "Toutes les places sont déjà occupées",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const sorted = [...unassigned].sort((a, b) => {
+      const nameA = `${a.last_name} ${a.first_name}`.toLowerCase()
+      const nameB = `${b.last_name} ${b.first_name}`.toLowerCase()
+      return order === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA)
+    })
+
+    const newAssignments = new Map(assignments)
+
+    sorted.forEach((student, index) => {
+      if (index < availableSeats.length) {
+        newAssignments.set(availableSeats[index], student.id)
+      }
+    })
+
+    setAssignments(newAssignments)
+    toast({
+      title: `Complément alphabétique ${order === "asc" ? "A-Z" : "Z-A"}`,
+      description: `${Math.min(sorted.length, availableSeats.length)} élève(s) placé(s)`,
+    })
+  }
+
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       <div className="border-b bg-white px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBack || onClose}>
+            <Button variant="ghost" size="icon" onClick={onBack}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -638,8 +750,77 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-80 border-r bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold">Élèves non placés ({getUnassignedStudents().length})</h2>
+        <div className="w-80 border-r bg-white p-6 overflow-y-auto">
+          <h2 className="mb-4 text-lg font-semibold">
+            Élèves non placés ({getFilteredUnassignedStudents().length}/{getUnassignedStudents().length})
+          </h2>
+
+          <div className="mb-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Rechercher un élève..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant={genderFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setGenderFilter("all")}
+                className="flex-1"
+              >
+                Tous
+              </Button>
+              <Button
+                variant={genderFilter === "M" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setGenderFilter("M")}
+                className="flex-1"
+              >
+                Garçons
+              </Button>
+              <Button
+                variant={genderFilter === "F" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setGenderFilter("F")}
+                className="flex-1"
+              >
+                Filles
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant={delegateFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDelegateFilter("all")}
+                className="flex-1"
+              >
+                Tous
+              </Button>
+              <Button
+                variant={delegateFilter === "delegate" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDelegateFilter("delegate")}
+                className="flex-1"
+              >
+                Délégués
+              </Button>
+              <Button
+                variant={delegateFilter === "eco" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDelegateFilter("eco")}
+                className="flex-1"
+              >
+                Éco-dél.
+              </Button>
+            </div>
+          </div>
 
           <div
             className={cn(
@@ -676,55 +857,111 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
             </p>
           </div>
 
-          <div className="space-y-2">
-            {getUnassignedStudents().map((student) => (
-              <div
-                key={student.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, student.id)}
-                className="flex cursor-move items-center justify-between rounded-lg border bg-white p-3 shadow-sm hover:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-medium">
-                    {student.last_name} {student.first_name}
-                  </span>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {student.class_name}
-                </Badge>
+          <div className="space-y-2 mb-6">
+            {getFilteredUnassignedStudents().length === 0 ? (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                {searchTerm || genderFilter !== "all" || delegateFilter !== "all"
+                  ? "Aucun élève ne correspond aux filtres"
+                  : "Tous les élèves sont placés"}
               </div>
-            ))}
+            ) : (
+              getFilteredUnassignedStudents().map((student) => (
+                <div
+                  key={student.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, student.id)}
+                  className="flex cursor-move items-center justify-between rounded-lg border bg-white p-3 shadow-sm hover:shadow-md transition-shadow relative"
+                >
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm font-medium">
+                      {student.last_name} {student.first_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {student.is_delegate && (
+                      <div
+                        className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white"
+                        title="Délégué"
+                      >
+                        D
+                      </div>
+                    )}
+                    {student.is_eco_delegate && (
+                      <div
+                        className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center text-[10px] font-bold text-white"
+                        title="Éco-délégué"
+                      >
+                        E
+                      </div>
+                    )}
+                    <Badge variant="outline" className="text-xs">
+                      {student.class_name}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="mt-6 space-y-2">
             <h3 className="mb-2 text-sm font-semibold">Actions rapides</h3>
-            <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleRandomPlacementAll}>
-              <Shuffle className="mr-2 h-4 w-4" />
-              Placement aléatoire
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent"
-              onClick={() => handleAlphabeticalPlacement("asc")}
-            >
-              <ArrowDownAZ className="mr-2 h-4 w-4" />
-              Alphabétique A-Z
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full bg-transparent"
-              onClick={() => handleAlphabeticalPlacement("desc")}
-            >
-              <ArrowUpAZ className="mr-2 h-4 w-4" />
-              Alphabétique Z-A
-            </Button>
-            <Button variant="destructive" size="sm" className="w-full" onClick={handleRemoveAll}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Tout retirer
-            </Button>
+
+            <div className="space-y-2 pb-3 mb-3 border-b">
+              <p className="text-xs text-muted-foreground">Compléter (élèves restants)</p>
+              <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleCompleteRandom}>
+                <Shuffle className="mr-2 h-4 w-4" />
+                Compléter aléatoire
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+                onClick={() => handleCompleteAlphabetical("asc")}
+              >
+                <ArrowDownAZ className="mr-2 h-4 w-4" />
+                Compléter A-Z
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+                onClick={() => handleCompleteAlphabetical("desc")}
+              >
+                <ArrowUpAZ className="mr-2 h-4 w-4" />
+                Compléter Z-A
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Placer tous les élèves</p>
+              <Button variant="outline" size="sm" className="w-full bg-transparent" onClick={handleRandomPlacementAll}>
+                <Shuffle className="mr-2 h-4 w-4" />
+                Placement aléatoire
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+                onClick={() => handleAlphabeticalPlacement("asc")}
+              >
+                <ArrowDownAZ className="mr-2 h-4 w-4" />
+                A-Z
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-transparent"
+                onClick={() => handleAlphabeticalPlacement("desc")}
+              >
+                <ArrowUpAZ className="mr-2 h-4 w-4" />
+                Z-A
+              </Button>
+              <Button variant="destructive" size="sm" className="w-full" onClick={handleRemoveAll}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Tout retirer
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -835,7 +1072,7 @@ export function SeatingPlanEditor({ subRoom, room, onClose, onBack }: SeatingPla
             <DialogDescription>Choisissez un élève à placer sur cette place</DialogDescription>
           </DialogHeader>
           <div className="max-h-96 space-y-2 overflow-y-auto">
-            {getUnassignedStudents().map((student) => (
+            {getFilteredUnassignedStudents().map((student) => (
               <Button
                 key={student.id}
                 variant="outline"
