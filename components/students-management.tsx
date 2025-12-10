@@ -20,7 +20,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Plus, Eye, Key, Mail, FileText, Upload, MoreHorizontal, Users } from "lucide-react"
+import { ArrowLeft, Plus, Eye, Key, Mail, FileText, Upload, MoreHorizontal, Users, Pencil } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ImportStudentsDialog } from "@/components/import-students-dialog"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog" // Added import for confirmation dialog
@@ -45,6 +45,7 @@ interface Student {
   profile_id?: string | null // Made nullable for "élève" role
   class_name?: string // Added class_name to Student interface
   is_deleted?: boolean // Added is_deleted field
+  birth_date?: string | null // Added birth_date
 }
 
 interface StudentsManagementProps {
@@ -128,6 +129,15 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [isBulkEmailDialogOpen, setIsBulkEmailDialogOpen] = useState(false)
   // End of updates for email dialogs
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editFormData, setEditFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    birth_date: "",
+  })
 
   useEffect(() => {
     if (isPromoteDialogOpen && selectedStudent) {
@@ -489,6 +499,8 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
       return
     }
 
+    await handleUpdateCredentials()
+
     setEmailToConfirm(selectedStudent.email)
     setIsEmailConfirmDialogOpen(true)
   }
@@ -623,9 +635,14 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
     }
   }
 
-  function handlePrintPDF() {
+  async function handlePrintPDF() {
+    if (!selectedStudent) return
+
+    // Save credentials first before printing PDF
+    await handleUpdateCredentials()
+
     const printWindow = window.open("", "_blank")
-    if (printWindow && selectedStudent) {
+    if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
@@ -952,6 +969,66 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
   }
   // END OF MODIFIED FUNCTIONS
 
+  function openEditDialog(student: Student) {
+    setSelectedStudent(student)
+    setEditFormData({
+      first_name: student.first_name,
+      last_name: student.last_name,
+      email: student.email || "",
+      phone: student.phone || "",
+      birth_date: student.birth_date || "",
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  async function handleUpdateStudent() {
+    if (!selectedStudent) return
+
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from("students")
+      .update({
+        first_name: editFormData.first_name,
+        last_name: editFormData.last_name,
+        email: editFormData.email || null,
+        phone: editFormData.phone || null,
+        birth_date: editFormData.birth_date || null,
+      })
+      .eq("id", selectedStudent.id)
+
+    if (error) {
+      console.error("[v0] Error updating student:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier l'élève",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // If student has a profile, update profile too
+    if (selectedStudent.profile_id) {
+      await supabase
+        .from("profiles")
+        .update({
+          first_name: editFormData.first_name,
+          last_name: editFormData.last_name,
+          email: editFormData.email || null,
+          phone: editFormData.phone || null,
+        })
+        .eq("id", selectedStudent.profile_id)
+    }
+
+    toast({
+      title: "Succès",
+      description: "L'élève a été modifié avec succès",
+    })
+
+    setIsEditDialogOpen(false)
+    fetchData()
+  }
+
   const filteredStudents = students.filter((s) => {
     // Filter by selected classes
     if (selectedClasses.length > 0 && (!s.class_id || !selectedClasses.includes(s.class_id))) {
@@ -1251,6 +1328,11 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
                         <Eye className="mr-2 h-4 w-4" />
                         Regarder
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEditDialog(student)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Modifier
+                      </DropdownMenuItem>
+
                       {userRole === "vie-scolaire" && student.role !== "eleve" && student.profile_id && (
                         <DropdownMenuItem
                           onClick={() => {
@@ -1487,6 +1569,14 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
               <div>
                 <Label className="text-muted-foreground">Peut créer des sous-salles</Label>
                 <p className="font-medium">{selectedStudent.can_create_subrooms ? "Oui" : "Non"}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Date de naissance</Label>
+                <p className="font-medium">
+                  {selectedStudent.birth_date
+                    ? new Date(selectedStudent.birth_date).toLocaleDateString()
+                    : "Non renseignée"}
+                </p>
               </div>
             </div>
           )}
@@ -1743,6 +1833,68 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
             <Button onClick={confirmBulkSendEmails} disabled={isSendingEmail}>
               {isSendingEmail ? "Envoi en cours..." : "Envoyer les emails"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier l'élève</DialogTitle>
+            <DialogDescription>
+              Modifier les informations de {selectedStudent?.first_name} {selectedStudent?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-first-name">Prénom</Label>
+              <Input
+                id="edit-first-name"
+                value={editFormData.first_name}
+                onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-last-name">Nom</Label>
+              <Input
+                id="edit-last-name"
+                value={editFormData.last_name}
+                onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-phone">Téléphone</Label>
+              <Input
+                id="edit-phone"
+                type="tel"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-birth-date">Date de naissance</Label>
+              <Input
+                id="edit-birth-date"
+                type="date"
+                value={editFormData.birth_date}
+                onChange={(e) => setEditFormData({ ...editFormData, birth_date: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleUpdateStudent}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
