@@ -23,7 +23,8 @@ import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Plus, Eye, Key, Mail, FileText, Upload, MoreHorizontal, Users, Pencil, Shuffle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ImportStudentsDialog } from "@/components/import-students-dialog"
-import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog" // Added import for confirmation dialog
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
+import { Checkbox } from "@/components/ui/checkbox" // Added import for checkbox
 
 interface Class {
   id: string
@@ -142,11 +143,13 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
   // End of updates for email dialogs
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editFormData, setEditFormData] = useState({
+  // Renamed editFormData to editData to avoid naming conflict with formData for add dialog
+  const [editData, setEditData] = useState({
     first_name: "",
     last_name: "",
     email: "",
     phone: "",
+    can_create_subrooms: false, // Added can_create_subrooms to editData
   })
 
   useEffect(() => {
@@ -991,16 +994,19 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
 
   function openEditDialog(student: Student) {
     setSelectedStudent(student)
-    setEditFormData({
+    setEditData({
+      // Use setEditData
       first_name: student.first_name,
       last_name: student.last_name,
       email: student.email || "",
       phone: student.phone || "",
+      can_create_subrooms: student.can_create_subrooms, // Initialize can_create_subrooms
     })
     setIsEditDialogOpen(true)
   }
 
-  async function handleUpdateStudent() {
+  async function handleSaveEdit() {
+    // Renamed from handleUpdateStudent
     if (!selectedStudent) return
 
     const supabase = createClient()
@@ -1008,10 +1014,11 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
     const { error } = await supabase
       .from("students")
       .update({
-        first_name: editFormData.first_name,
-        last_name: editFormData.last_name,
-        email: editFormData.email || null,
-        phone: editFormData.phone || null,
+        first_name: editData.first_name,
+        last_name: editData.last_name,
+        email: editData.email || null,
+        phone: editData.phone || null,
+        can_create_subrooms: editData.can_create_subrooms, // Update can_create_subrooms
       })
       .eq("id", selectedStudent.id)
 
@@ -1030,10 +1037,10 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
       await supabase
         .from("profiles")
         .update({
-          first_name: editFormData.first_name,
-          last_name: editFormData.last_name,
-          email: editFormData.email || null,
-          phone: editFormData.phone || null,
+          first_name: editData.first_name,
+          last_name: editData.last_name,
+          email: editData.email || null,
+          phone: editData.phone || null,
         })
         .eq("id", selectedStudent.profile_id)
     }
@@ -1617,24 +1624,24 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
                 id="username"
                 value={accessData.username}
                 onChange={(e) => setAccessData({ ...accessData, username: e.target.value })}
-                className="w-full"
               />
             </div>
             <div>
               <Label htmlFor="password">Mot de passe</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 min-w-0">
                 <Input
                   id="password"
                   type="text"
                   placeholder="Laisser vide pour ne pas modifier"
                   value={accessData.password}
                   onChange={(e) => setAccessData({ ...accessData, password: e.target.value })}
-                  className="flex-1"
+                  className="flex-1 min-w-0"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
+                  className="shrink-0 bg-transparent"
                   onClick={() => setAccessData({ ...accessData, password: generateRandomPassword(8) })}
                   title="Générer un mot de passe aléatoire"
                 >
@@ -1644,20 +1651,24 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
               <p className="text-xs text-muted-foreground mt-1">Laissez vide pour conserver le mot de passe actuel</p>
             </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setIsAccessDialogOpen(false)} className="w-full sm:w-auto">
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setIsAccessDialogOpen(false)}
+              className="w-full sm:w-auto order-last sm:order-first"
+            >
               Annuler
             </Button>
-            <Button onClick={handleUpdateCredentials} className="w-full sm:w-auto">
+            <Button onClick={handleUpdateCredentials} className="w-full sm:flex-1">
               Enregistrer
             </Button>
-            <Button variant="secondary" onClick={handleSendEmail} className="w-full sm:w-auto">
+            <Button variant="secondary" onClick={handleSendEmail} className="w-full sm:flex-1">
               <Mail className="mr-2 h-4 w-4" />
-              Envoyer par email
+              Email
             </Button>
-            <Button variant="secondary" onClick={handlePrintPDF} className="w-full sm:w-auto">
+            <Button variant="secondary" onClick={handlePrintPDF} className="w-full sm:flex-1">
               <FileText className="mr-2 h-4 w-4" />
-              Télécharger PDF
+              PDF
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1855,7 +1866,7 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Modifier l'élève</DialogTitle>
             <DialogDescription>
@@ -1863,46 +1874,59 @@ export function StudentsManagement({ establishmentId, userRole, userId, onBack }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-first-name">Prénom</Label>
-              <Input
-                id="edit-first-name"
-                value={editFormData.first_name}
-                onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-last-name">Nom</Label>
-              <Input
-                id="edit-last-name"
-                value={editFormData.last_name}
-                onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-first-name">Prénom</Label>
+                <Input
+                  id="edit-first-name"
+                  value={editData.first_name}
+                  onChange={(e) => setEditData({ ...editData, first_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-last-name">Nom</Label>
+                <Input
+                  id="edit-last-name"
+                  value={editData.last_name}
+                  onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="edit-email">Email</Label>
               <Input
                 id="edit-email"
                 type="email"
-                value={editFormData.email}
-                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                value={editData.email}
+                onChange={(e) => setEditData({ ...editData, email: e.target.value })}
               />
             </div>
             <div>
               <Label htmlFor="edit-phone">Téléphone</Label>
               <Input
                 id="edit-phone"
-                type="tel"
-                value={editFormData.phone}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                value={editData.phone}
+                onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
               />
             </div>
+            {(selectedStudent?.role === "delegue" || selectedStudent?.role === "eco-delegue") && (
+              <div className="flex items-center space-x-2 pt-2 border-t">
+                <Checkbox
+                  id="can-create-subrooms"
+                  checked={editData.can_create_subrooms}
+                  onCheckedChange={(checked) => setEditData({ ...editData, can_create_subrooms: checked as boolean })}
+                />
+                <Label htmlFor="can-create-subrooms" className="text-sm font-normal cursor-pointer">
+                  Peut créer des sous-salles
+                </Label>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleUpdateStudent}>Enregistrer</Button>
+            <Button onClick={handleSaveEdit}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -23,7 +23,7 @@ interface Proposal {
   status: "pending" | "approved" | "rejected"
   created_at: string
   rooms: { name: string; code: string }
-  classes: { name: string; code: string }
+  classes: { name: string }
   teachers: { first_name: string; last_name: string }
   proposed_by_profile: { first_name: string; last_name: string }
   reviewed_by_profile?: { first_name: string; last_name: string }
@@ -62,7 +62,7 @@ export function SandboxManagement({ establishmentId, userRole, userId, onBack }:
           reviewed_at,
           rejection_reason,
           rooms:room_id (name, code),
-          classes:class_id (name, code),
+          classes:class_id (name),
           teachers:teacher_id (first_name, last_name),
           proposed_by_profile:proposed_by (first_name, last_name),
           reviewed_by_profile:reviewed_by (first_name, last_name)

@@ -282,11 +282,29 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
       .eq("establishment_id", establishmentId)
 
     if (userRole === "professeur") {
-      // Professors see: sub-rooms they created OR where they are the main teacher OR in sub_room_teachers
-      subRoomsQuery = subRoomsQuery.or(`teacher_id.eq.${userId},created_by.eq.${userId}`)
+      // Get teacher_id first
+      const { data: teacherData } = await supabase.from("teachers").select("id").eq("profile_id", userId).maybeSingle()
+
+      if (teacherData) {
+        // Get sub_room IDs where teacher is in sub_room_teachers
+        const { data: subRoomTeachersData } = await supabase
+          .from("sub_room_teachers")
+          .select("sub_room_id")
+          .eq("teacher_id", teacherData.id)
+
+        const subRoomIds = subRoomTeachersData?.map((srt) => srt.sub_room_id) || []
+
+        // Include: created by me, main teacher, or in sub_room_teachers
+        if (subRoomIds.length > 0) {
+          subRoomsQuery = subRoomsQuery.or(
+            `teacher_id.eq.${teacherData.id},created_by.eq.${userId},id.in.(${subRoomIds.join(",")})`,
+          )
+        } else {
+          subRoomsQuery = subRoomsQuery.or(`teacher_id.eq.${teacherData.id},created_by.eq.${userId}`)
+        }
+      }
     } else if (userRole === "delegue" || userRole === "eco-delegue") {
       // Delegates need to see sub-rooms containing their class_id in class_ids array
-      // First, get the delegate's class_id
       const { data: studentRecord } = await supabase
         .from("students")
         .select("class_id")
@@ -294,10 +312,8 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
         .maybeSingle()
 
       if (studentRecord?.class_id) {
-        // Filter sub-rooms that contain this class_id in their class_ids array
         subRoomsQuery = subRoomsQuery.contains("class_ids", [studentRecord.class_id])
       } else {
-        // If no class found, show only sub-rooms they created (fallback)
         subRoomsQuery = subRoomsQuery.eq("created_by", userId)
       }
     }
@@ -409,7 +425,7 @@ export function SeatingPlanManagement({ establishmentId, userRole, userId, onBac
               </p>
             </div>
           </div>
-          {canCreateSubRooms && (
+          {canCreateSubRooms && userRole !== "delegue" && userRole !== "eco-delegue" && (
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
               size="lg"

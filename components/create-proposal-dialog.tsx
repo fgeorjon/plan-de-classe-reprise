@@ -60,20 +60,24 @@ export function CreateProposalDialog({
 
   async function fetchData() {
     try {
-      // Get delegate's class
       const { data: studentData } = await supabase.from("students").select("class_id").eq("profile_id", userId).single()
 
       if (studentData) {
         setClassId(studentData.class_id)
 
-        // Fetch teachers for this class
         const { data: teacherClassData } = await supabase
           .from("teacher_classes")
           .select("teacher_id, teachers(id, first_name, last_name, subject)")
           .eq("class_id", studentData.class_id)
 
         if (teacherClassData) {
-          setTeachers(teacherClassData.map((tc: any) => tc.teachers))
+          const uniqueTeachers = teacherClassData
+            .map((tc: any) => tc.teachers)
+            .filter(
+              (teacher: any, index: number, self: any[]) =>
+                teacher && self.findIndex((t) => t?.id === teacher?.id) === index,
+            )
+          setTeachers(uniqueTeachers)
         }
       }
 
@@ -118,6 +122,7 @@ export function CreateProposalDialog({
         class_id: classId,
         teacher_id: selectedTeacherId,
         proposed_by: userId,
+        establishment_id: establishmentId,
         status: "pending",
         seat_assignments: {},
       })
@@ -188,11 +193,15 @@ export function CreateProposalDialog({
                 <SelectValue placeholder="Sélectionner un professeur" />
               </SelectTrigger>
               <SelectContent>
-                {teachers.map((teacher) => (
-                  <SelectItem key={teacher.id} value={teacher.id}>
-                    {teacher.first_name} {teacher.last_name} - {teacher.subject}
-                  </SelectItem>
-                ))}
+                {teachers.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">Aucun professeur disponible</div>
+                ) : (
+                  teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.first_name} {teacher.last_name} - {teacher.subject}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
