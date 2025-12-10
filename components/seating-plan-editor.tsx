@@ -491,7 +491,8 @@ export function SeatingPlanEditor({ subRoom, room: initialRoom, onClose, onBack 
       const assignmentsToInsert = Array.from(assignments.entries()).map(([seatNumber, studentId]) => ({
         sub_room_id: subRoom.id,
         student_id: studentId,
-        seat_position: seatNumber, // Just the seat number as integer
+        seat_id: `seat-${seatNumber}`, // Generate unique seat_id from seat number
+        seat_position: seatNumber, // The seat number as integer
       }))
 
       console.log("[v0] Assignments to insert:", assignmentsToInsert)
@@ -602,7 +603,7 @@ export function SeatingPlanEditor({ subRoom, room: initialRoom, onClose, onBack 
       description: "Le téléchargement va commencer...",
     })
     // For now, just download as text
-    const content = `Plan de Classe: ${subRoom.name}\n\nÉlèves placés:\n${Array.from(assignments.entries())
+    const content = `Plan de Classe: ${subRoom.name}\n\nÉlèves placed:\n${Array.from(assignments.entries())
       .map(([seat, studentId]) => {
         const student = students.find((s) => s.id === studentId)
         return `Place ${seat}: ${student?.last_name} ${student?.first_name}`
