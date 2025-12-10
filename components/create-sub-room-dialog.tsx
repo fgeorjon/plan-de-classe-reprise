@@ -171,6 +171,11 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
 
   const handleCreate = async () => {
     if (!formData.roomId || formData.selectedTeachers.length === 0 || formData.selectedClasses.length === 0) {
+      toast({
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive",
+      })
       return
     }
 
@@ -186,9 +191,9 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         name: formData.customName || defaultName,
         teacher_id: formData.selectedTeachers[0],
         establishment_id: establishmentId,
+        class_ids: formData.selectedClasses,
       })
 
-      // Créer la sous-salle
       const { data: subRoom, error: subRoomError } = await supabase
         .from("sub_rooms")
         .insert({
@@ -197,6 +202,8 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
           custom_name: formData.customName || null,
           teacher_id: formData.selectedTeachers[0],
           establishment_id: establishmentId,
+          class_ids: formData.selectedClasses, // Store array for backward compatibility
+          is_multi_class: formData.isMultiClass,
         })
         .select()
         .single()
@@ -205,7 +212,7 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         console.error("[v0] Error creating sub-room:", subRoomError)
         toast({
           title: "Échec de la création",
-          description: `Impossible de créer la sous-salle: ${subRoomError.message}`,
+          description: `Erreur: ${subRoomError.message}${subRoomError.hint ? ` (${subRoomError.hint})` : ""}`,
           variant: "destructive",
         })
         setIsLoading(false)
@@ -214,7 +221,6 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
 
       console.log("[v0] Sub-room created successfully:", subRoom.id)
 
-      // Si salle collaborative, ajouter tous les profs dans sub_room_teachers
       if (formData.isCollaborative && formData.selectedTeachers.length > 0) {
         const teacherLinks = formData.selectedTeachers.map((teacherId) => ({
           sub_room_id: subRoom.id,
@@ -227,13 +233,14 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
           console.error("[v0] Error linking teachers:", teachersError)
           toast({
             title: "Attention",
-            description: `Erreur lors de l'ajout des professeurs: ${teachersError.message}`,
+            description: `Les professeurs n'ont pas pu être ajoutés: ${teachersError.message}`,
             variant: "destructive",
           })
+        } else {
+          console.log("[v0] Teachers linked successfully")
         }
       }
 
-      // Ajouter les classes
       const classLinks = formData.selectedClasses.map((classId) => ({
         sub_room_id: subRoom.id,
         class_id: classId,
@@ -245,21 +252,23 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         console.error("[v0] Error linking classes:", classesError)
         toast({
           title: "Échec de la création",
-          description: `Impossible d'associer les classes: ${classesError.message}`,
+          description: `Les classes n'ont pas pu être associées: ${classesError.message}`,
           variant: "destructive",
         })
+
+        await supabase.from("sub_rooms").delete().eq("id", subRoom.id)
+
         setIsLoading(false)
         return
       }
 
-      console.log("[v0] Sub-room created successfully with all associations")
+      console.log("[v0] Classes linked successfully")
 
       toast({
-        title: "Sous-salle créée",
-        description: `La sous-salle "${formData.customName || defaultName}" a été créée avec succès`,
+        title: "Sous-salle créée avec succès",
+        description: `"${formData.customName || defaultName}" est maintenant disponible`,
       })
 
-      // Réinitialiser le formulaire
       setFormData({
         roomId: "",
         customName: "",
@@ -269,11 +278,12 @@ export function CreateSubRoomDialog({ open, onOpenChange, onSuccess, establishme
         isMultiClass: false,
       })
 
+      onOpenChange(false)
+
       setTimeout(() => {
+        console.log("[v0] Reloading page to show new sub-room")
         window.location.reload()
       }, 500)
-
-      onOpenChange(false)
     } catch (error: any) {
       console.error("[v0] Unexpected error creating sub-room:", error)
       toast({

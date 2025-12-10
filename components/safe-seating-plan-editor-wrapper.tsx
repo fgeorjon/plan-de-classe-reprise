@@ -52,7 +52,6 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
     const supabase = createClient()
 
     try {
-      // Charger la salle
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select("*")
@@ -61,7 +60,7 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
 
       if (roomError) {
         console.error("[v0] SafeWrapper: Error loading room:", roomError)
-        setError(`Erreur de chargement: ${roomError.message}`)
+        setError(`Erreur de chargement de la salle: ${roomError.message}`)
         setIsLoading(false)
         return
       }
@@ -73,7 +72,6 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
         return
       }
 
-      // Validate room structure
       if (!roomData.config || !roomData.config.columns || !Array.isArray(roomData.config.columns)) {
         console.error("[v0] SafeWrapper: Invalid room config:", roomData)
         setError("Configuration de la salle invalide ou manquante")
@@ -103,13 +101,23 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
 
       if (classLinksError) {
         console.error("[v0] SafeWrapper: Error loading class links:", classLinksError)
-        setError(`Erreur lors du chargement des classes: ${classLinksError.message}`)
+        console.warn("[v0] SafeWrapper: Falling back to class_ids array from sub_rooms table")
+        const classIds = subRoom.class_ids || []
+        console.log("[v0] SafeWrapper: Using fallback class_ids:", classIds)
+
+        const enriched: SubRoomProps = {
+          ...subRoom,
+          class_ids: classIds,
+        }
+
+        setRoom(roomData)
+        setEnrichedSubRoom(enriched)
         setIsLoading(false)
         return
       }
 
       const classIds = classLinksData?.map((link) => link.class_id) || []
-      console.log("[v0] SafeWrapper: Class IDs loaded:", classIds)
+      console.log("[v0] SafeWrapper: Class IDs loaded from junction table:", classIds)
 
       if (classIds.length === 0) {
         console.warn("[v0] SafeWrapper: No classes associated with this sub-room")
@@ -125,7 +133,7 @@ export function SafeSeatingPlanEditorWrapper({ subRoom, onBack }: SafeSeatingPla
       setIsLoading(false)
     } catch (err: any) {
       console.error("[v0] SafeWrapper: Unexpected error:", err)
-      setError("Erreur inattendue lors du chargement")
+      setError(`Erreur inattendue: ${err.message || "Impossible de charger les données"}`)
       setIsLoading(false)
     }
   }
