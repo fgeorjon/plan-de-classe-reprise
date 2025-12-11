@@ -57,7 +57,53 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
 
     // Refresh every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
+
+    const supabase = createClient()
+
+    const channel = supabase
+      .channel("notifications-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("[v0] New notification received:", payload.new)
+          fetchNotifications()
+
+          // Show toast for new notification
+          toast({
+            title: (payload.new as any).title,
+            description: (payload.new as any).message,
+            className: "z-[9999]",
+          })
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          console.log("[v0] Notification updated")
+          fetchNotifications()
+        },
+      )
+      .subscribe()
+
+    console.log("[v0] Subscribed to notifications channel")
+
+    return () => {
+      console.log("[v0] Unsubscribing from notifications channel")
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [userId, establishmentId])
 
   const handleMarkAsRead = async (notificationId: string) => {

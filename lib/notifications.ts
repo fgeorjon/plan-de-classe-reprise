@@ -12,24 +12,27 @@ interface NotificationData {
 }
 
 export async function sendNotification(data: NotificationData) {
-  const supabase = createClient()
+  console.log("[v0] Sending notification:", data)
 
-  const { error } = await supabase.from("notifications").insert({
-    user_id: data.user_id,
-    establishment_id: data.establishment_id,
-    type: data.type,
-    title: data.title,
-    message: data.message,
-    sub_room_id: data.sub_room_id,
-    proposal_id: data.proposal_id,
-    triggered_by: data.triggered_by,
-    is_read: false,
-  })
+  try {
+    const response = await fetch("/api/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
 
-  if (error) {
+    if (!response.ok) {
+      const error = await response.json()
+      console.error("[v0] Error sending notification via API:", error)
+      return
+    }
+
+    const result = await response.json()
+    console.log("[v0] Notification sent successfully:", result.data.id)
+  } catch (error) {
     console.error("[v0] Error sending notification:", error)
-  } else {
-    console.log("[v0] Notification sent successfully to user:", data.user_id)
   }
 }
 
@@ -156,4 +159,21 @@ export async function notifyPlanDeleted(subRoomName: string, classIds: string[],
       message: `Le plan "${subRoomName}" a été supprimé`,
     })
   }
+}
+
+export async function notifyProposalSubmitted(
+  proposalId: string,
+  teacherUserId: string,
+  subRoomName: string,
+  delegateName: string,
+  establishmentId: string,
+) {
+  await sendNotification({
+    user_id: teacherUserId,
+    establishment_id: establishmentId,
+    type: "proposal_submitted",
+    title: "Nouvelle proposition",
+    message: `${delegateName} a soumis une proposition pour "${subRoomName}"`,
+    proposal_id: proposalId,
+  })
 }
