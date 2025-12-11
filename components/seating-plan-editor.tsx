@@ -75,21 +75,21 @@ interface SubRoom {
   class_ids: string[]
   is_sandbox?: boolean // Added for sandbox functionality
   proposal_data?: {
-    // Added for sandbox proposal data
     id: string
+    proposed_by: string
     sub_room_id: string | null
     room_id: string
     teacher_id: string
     class_id: string
     name: string
     seat_assignments: { seat_id: string; student_id: string; seat_number: number }[]
-    status: "pending" | "approved" | "rejected" | "submitted" // Added "submitted"
+    status: "pending" | "approved" | "rejected" | "draft"
     is_submitted: boolean
     reviewed_by: string | null
     reviewed_at: string | null
     created_at: string
     updated_at: string
-    proposed_by: string // Added for notifications
+    proposed_by: string
   }
 }
 
@@ -479,7 +479,8 @@ export function SeatingPlanEditor({
       }
 
       const updateData = {
-        status: "submitted",
+        status: "pending",
+        is_submitted: true,
         updated_at: new Date().toISOString(),
       }
 
