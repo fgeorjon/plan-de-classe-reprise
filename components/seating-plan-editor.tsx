@@ -470,7 +470,11 @@ export function SeatingPlanEditor({
       console.log("[v0] subRoom object:", subRoom)
       console.log("[v0] subRoom.id:", subRoom.id)
       console.log("[v0] subRoom.proposal_data:", subRoom.proposal_data)
-      console.log("[v0] Attempting to update proposal with ID:", subRoom.id)
+      console.log("[v0] Attempting to update proposal with ID:", subRoom.proposal_data?.id)
+
+      if (!subRoom.proposal_data?.id) {
+        throw new Error("ID de proposition manquant")
+      }
 
       const { data, error } = await supabase
         .from("sub_room_proposals")
@@ -478,7 +482,7 @@ export function SeatingPlanEditor({
           status: "submitted",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", subRoom.id)
+        .eq("id", subRoom.proposal_data.id)
         .select()
 
       console.log("[v0] Update response - data:", data)
