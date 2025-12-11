@@ -182,6 +182,19 @@ export function CreateProposalDialog({
     setIsLoading(true)
 
     try {
+      const { data: studentData, error: studentError } = await supabase
+        .from("students")
+        .select("profile_id")
+        .eq("profile_id", userId)
+        .single()
+
+      if (studentError || !studentData?.profile_id) {
+        // If no student found with this profile_id, assume userId is already a profile_id
+        console.log("[v0] No student found, assuming userId is a profile_id")
+      }
+
+      const profileId = studentData?.profile_id || userId
+
       let seatAssignments = {}
       let roomId = selectedRoomId
 
@@ -200,7 +213,7 @@ export function CreateProposalDialog({
         room_id: roomId,
         class_id: classId,
         teacher_id: selectedTeacherId,
-        proposed_by: userId,
+        proposed_by: profileId, // ✅ Now using the correct profile_id
         establishment_id: establishmentId,
         status: "pending",
         seat_assignments: seatAssignments,

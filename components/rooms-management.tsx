@@ -59,11 +59,11 @@ interface Room {
 }
 
 interface RoomsManagementProps {
-  rooms: Room[]
+  initialRooms: Room[]
   establishmentId: string
 }
 
-export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsManagementProps) {
+export function RoomsManagement({ initialRooms, establishmentId }: RoomsManagementProps) {
   const { user } = useAuth()
   const router = useRouter()
   const [rooms, setRooms] = useState(initialRooms)
