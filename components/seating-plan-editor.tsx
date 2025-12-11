@@ -204,12 +204,19 @@ export function SeatingPlanEditor({
     if (isSandbox && subRoom.is_sandbox && subRoom.proposal_data?.seat_assignments) {
       console.log("[v0] Loading assignments from sandbox proposal")
       const assignmentMap = new Map<number, string>()
-      subRoom.proposal_data.seat_assignments.forEach((a) => {
-        assignmentMap.set(a.seat_number, a.student_id)
+
+      const seatAssignments = Array.isArray(subRoom.proposal_data.seat_assignments)
+        ? subRoom.proposal_data.seat_assignments
+        : Object.values(subRoom.proposal_data.seat_assignments || {})
+
+      seatAssignments.forEach((a: any) => {
+        if (a && a.seat_number && a.student_id) {
+          assignmentMap.set(a.seat_number, a.student_id)
+        }
       })
       setAssignments(assignmentMap)
       setSavedAssignments(new Map(assignmentMap))
-      console.log("[v0] Loaded", subRoom.proposal_data.seat_assignments.length, "seat assignments from proposal")
+      console.log("[v0] Loaded", seatAssignments.length, "seat assignments from proposal")
     } else {
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("seating_assignments")

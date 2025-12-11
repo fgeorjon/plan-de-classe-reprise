@@ -144,22 +144,24 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
   }
 
   const calculateTotalSeats = () => {
-    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
-
-    return formData.columns.reduce((total, column) => {
-      if (!column || typeof column !== "object") return total
-      const tables = Number(column.tables) || 0
-      const seatsPerTable = Number(column.seatsPerTable) || 0
+    if (!formData || !formData.columns || !Array.isArray(formData.columns)) {
+      return 0
+    }
+    return formData.columns.reduce((total, col) => {
+      if (!col || typeof col !== "object") return total
+      const tables = Number(col.tables) || 0
+      const seatsPerTable = Number(col.seatsPerTable) || 0
       return total + tables * seatsPerTable
     }, 0)
   }
 
   const calculateTotalWidth = () => {
-    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
-
-    return formData.columns.reduce((total, column) => {
-      if (!column || typeof column !== "object") return total
-      const seatsPerTable = Number(column.seatsPerTable) || 0
+    if (!formData || !formData.columns || !Array.isArray(formData.columns)) {
+      return 0
+    }
+    return formData.columns.reduce((total, col) => {
+      if (!col || typeof col !== "object") return total
+      const seatsPerTable = Number(col.seatsPerTable) || 0
       return total + seatsPerTable
     }, 0)
   }
