@@ -30,7 +30,8 @@ export function ReviewProposalDialog({
 }: ReviewProposalDialogProps) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [action, setAction] = useState<"approve" | "reject" | null>(null)
+  const [action, setAction] = useState<"approve" | "reject" | "return" | null>(null)
+  const [returnComments, setReturnComments] = useState("")
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -156,7 +157,15 @@ export function ReviewProposalDialog({
         if (updateError) throw updateError
       }
 
-      await notifyProposalStatusChange(proposal.id, proposal.proposed_by, "approved", proposal.name)
+      const { data: profileData } = await supabase.from("profiles").select("establishment_id").eq("id", userId).single()
+
+      await notifyProposalStatusChange(
+        proposal.id,
+        proposal.proposed_by,
+        "approved",
+        proposal.name,
+        profileData?.establishment_id || "",
+      )
 
       toast({
         title: "Succès",
@@ -174,7 +183,7 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: error.message || "Impossible de valider la proposition",
         variant: "destructive",
-        className: "z-[9999]", // Added z-index for toast visibility
+        className: "z-[9999]",
       })
     } finally {
       setIsLoading(false)
@@ -188,7 +197,7 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: "Veuillez indiquer une raison pour le refus",
         variant: "destructive",
-        className: "z-[9999]", // Added z-index for toast visibility
+        className: "z-[9999]",
       })
       return
     }
@@ -197,6 +206,8 @@ export function ReviewProposalDialog({
     setAction("reject")
 
     try {
+      const { data: profileData } = await supabase.from("profiles").select("establishment_id").eq("id", userId).single()
+
       const { error } = await supabase
         .from("sub_room_proposals")
         .update({
@@ -209,12 +220,19 @@ export function ReviewProposalDialog({
 
       if (error) throw error
 
-      await notifyProposalStatusChange(proposal.id, proposal.proposed_by, "rejected", proposal.name, rejectionReason)
+      await notifyProposalStatusChange(
+        proposal.id,
+        proposal.proposed_by,
+        "rejected",
+        proposal.name,
+        profileData?.establishment_id || "",
+        rejectionReason,
+      )
 
       toast({
         title: "Proposition refusée",
         description: "Le délégué a été notifié du refus",
-        className: "z-[9999]", // Added z-index for toast visibility
+        className: "z-[9999]",
       })
 
       onSuccess()
@@ -225,7 +243,68 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: error.message || "Impossible de refuser la proposition",
         variant: "destructive",
-        className: "z-[9999]", // Added z-index for toast visibility
+        className: "z-[9999]",
+      })
+    } finally {
+      setIsLoading(false)
+      setAction(null)
+    }
+  }
+
+  async function handleReturn() {
+    if (!proposal || !returnComments.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez indiquer des commentaires pour le délégué",
+        variant: "destructive",
+        className: "z-[9999]",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    setAction("return")
+
+    try {
+      const { data: profileData } = await supabase.from("profiles").select("establishment_id").eq("id", userId).single()
+
+      const { error } = await supabase
+        .from("sub_room_proposals")
+        .update({
+          status: "draft",
+          teacher_comments: returnComments,
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", proposal.id)
+
+      if (error) throw error
+
+      await notifyProposalStatusChange(
+        proposal.id,
+        proposal.proposed_by,
+        "returned",
+        proposal.name,
+        profileData?.establishment_id || "",
+        returnComments,
+      )
+
+      toast({
+        title: "Proposition renvoyée",
+        description: "Le délégué a été notifié et peut maintenant modifier la proposition",
+        className: "z-[9999]",
+      })
+
+      onSuccess()
+      onOpenChange(false)
+      setReturnComments("")
+    } catch (error: any) {
+      console.error("[v0] Error returning proposal:", error)
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de renvoyer la proposition",
+        variant: "destructive",
+        className: "z-[9999]",
       })
     } finally {
       setIsLoading(false)
@@ -347,7 +426,18 @@ export function ReviewProposalDialog({
           {isPending && isTeacher && (
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="rejection-reason">Raison du refus (si refusée)</Label>
+                <Label htmlFor="return-comments">Commentaires pour le délégué (optionnel)</Label>
+                <Textarea
+                  id="return-comments"
+                  placeholder="Ex: Pouvez-vous placer les élèves turbulents plus près du tableau..."
+                  value={returnComments}
+                  onChange={(e) => setReturnComments(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rejection-reason">Raison du refus définitif (si refusée)</Label>
                 <Textarea
                   id="rejection-reason"
                   placeholder="Ex: Le plan ne convient pas pour ce type de cours..."
@@ -360,12 +450,20 @@ export function ReviewProposalDialog({
               <div className="flex gap-2">
                 <Button
                   variant="outline"
+                  onClick={handleReturn}
+                  disabled={isLoading || !returnComments.trim()}
+                  className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50 bg-transparent"
+                >
+                  {isLoading && action === "return" ? "Renvoi..." : "Renvoyer avec commentaires"}
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleReject}
                   disabled={isLoading || !rejectionReason.trim()}
                   className="flex-1 border-red-300 text-red-700 hover:bg-red-50 bg-transparent"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  {isLoading && action === "reject" ? "Refus..." : "Refuser"}
+                  {isLoading && action === "reject" ? "Refus..." : "Refuser définitivement"}
                 </Button>
                 <Button onClick={handleApprove} disabled={isLoading} className="flex-1 bg-green-600 hover:bg-green-700">
                   <Check className="w-4 h-4 mr-2" />

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client"
 
 interface NotificationData {
   user_id: string
+  establishment_id: string
   type: string
   title: string
   message: string
@@ -15,6 +16,7 @@ export async function sendNotification(data: NotificationData) {
 
   const { error } = await supabase.from("notifications").insert({
     user_id: data.user_id,
+    establishment_id: data.establishment_id,
     type: data.type,
     title: data.title,
     message: data.message,
@@ -26,13 +28,19 @@ export async function sendNotification(data: NotificationData) {
 
   if (error) {
     console.error("[v0] Error sending notification:", error)
+  } else {
+    console.log("[v0] Notification sent successfully to user:", data.user_id)
   }
 }
 
-export async function notifyPlanModified(subRoomId: string, subRoomName: string, classIds: string[]) {
+export async function notifyPlanModified(
+  subRoomId: string,
+  subRoomName: string,
+  classIds: string[],
+  establishmentId: string,
+) {
   const supabase = createClient()
 
-  // Get all students in the affected classes
   const { data: students, error } = await supabase
     .from("students")
     .select("profile_id")
@@ -44,10 +52,10 @@ export async function notifyPlanModified(subRoomId: string, subRoomName: string,
     return
   }
 
-  // Send notification to each student
   for (const student of students) {
     await sendNotification({
       user_id: student.profile_id!,
+      establishment_id: establishmentId,
       type: "plan_modified",
       title: "Plan de classe modifié",
       message: `Le plan "${subRoomName}" a été mis à jour`,
@@ -59,30 +67,47 @@ export async function notifyPlanModified(subRoomId: string, subRoomName: string,
 export async function notifyProposalStatusChange(
   proposalId: string,
   delegateUserId: string,
-  status: "approved" | "rejected",
+  status: "approved" | "rejected" | "returned",
   subRoomName: string,
+  establishmentId: string,
   rejectionReason?: string,
 ) {
   if (status === "approved") {
     await sendNotification({
       user_id: delegateUserId,
+      establishment_id: establishmentId,
       type: "plan_validated",
       title: "Proposition validée",
       message: `Votre proposition "${subRoomName}" a été validée et est maintenant active`,
       proposal_id: proposalId,
     })
-  } else {
+  } else if (status === "rejected") {
     await sendNotification({
       user_id: delegateUserId,
+      establishment_id: establishmentId,
       type: "plan_rejected",
       title: "Proposition refusée",
       message: rejectionReason || `Votre proposition "${subRoomName}" a été refusée`,
       proposal_id: proposalId,
     })
+  } else if (status === "returned") {
+    await sendNotification({
+      user_id: delegateUserId,
+      establishment_id: establishmentId,
+      type: "plan_returned",
+      title: "Proposition à revoir",
+      message: rejectionReason || `Le professeur demande des modifications pour "${subRoomName}"`,
+      proposal_id: proposalId,
+    })
   }
 }
 
-export async function notifyPlanCreated(subRoomId: string, subRoomName: string, classIds: string[]) {
+export async function notifyPlanCreated(
+  subRoomId: string,
+  subRoomName: string,
+  classIds: string[],
+  establishmentId: string,
+) {
   const supabase = createClient()
 
   const { data: students, error } = await supabase
@@ -99,6 +124,7 @@ export async function notifyPlanCreated(subRoomId: string, subRoomName: string, 
   for (const student of students) {
     await sendNotification({
       user_id: student.profile_id!,
+      establishment_id: establishmentId,
       type: "plan_created",
       title: "Nouveau plan de classe",
       message: `Un nouveau plan "${subRoomName}" a été créé pour votre classe`,
@@ -107,7 +133,7 @@ export async function notifyPlanCreated(subRoomId: string, subRoomName: string, 
   }
 }
 
-export async function notifyPlanDeleted(subRoomName: string, classIds: string[]) {
+export async function notifyPlanDeleted(subRoomName: string, classIds: string[], establishmentId: string) {
   const supabase = createClient()
 
   const { data: students, error } = await supabase
@@ -124,6 +150,7 @@ export async function notifyPlanDeleted(subRoomName: string, classIds: string[])
   for (const student of students) {
     await sendNotification({
       user_id: student.profile_id!,
+      establishment_id: establishmentId,
       type: "plan_deleted",
       title: "Plan de classe supprimé",
       message: `Le plan "${subRoomName}" a été supprimé`,
