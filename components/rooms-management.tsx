@@ -144,24 +144,22 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
   }
 
   const calculateTotalSeats = () => {
-    if (!formData || !formData.columns || !Array.isArray(formData.columns)) {
-      return 0
-    }
-    return formData.columns.reduce((total, col) => {
-      if (!col || typeof col !== "object") return total
-      const tables = Number(col.tables) || 0
-      const seatsPerTable = Number(col.seatsPerTable) || 0
+    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
+
+    return formData.columns.reduce((total, column) => {
+      if (!column || typeof column !== "object") return total
+      const tables = Number(column.tables) || 0
+      const seatsPerTable = Number(column.seatsPerTable) || 0
       return total + tables * seatsPerTable
     }, 0)
   }
 
   const calculateTotalWidth = () => {
-    if (!formData || !formData.columns || !Array.isArray(formData.columns)) {
-      return 0
-    }
-    return formData.columns.reduce((total, col) => {
-      if (!col || typeof col !== "object") return total
-      const seatsPerTable = Number(col.seatsPerTable) || 0
+    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
+
+    return formData.columns.reduce((total, column) => {
+      if (!column || typeof column !== "object") return total
+      const seatsPerTable = Number(column.seatsPerTable) || 0
       return total + seatsPerTable
     }, 0)
   }
@@ -502,14 +500,11 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
         <div className="mb-6">
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-emerald-100 dark:scrollbar-thumb-emerald-700 dark:scrollbar-track-slate-800">
             {filteredRooms.map((room) => {
-              const config = room.config ?? { columns: [] }
-              const columns = Array.isArray(config.columns) ? config.columns : []
-              const totalSeats = columns.reduce((total, col) => {
-                if (!col || typeof col !== "object") return total
-                const tables = Number(col.tables) || 0
-                const seatsPerTable = Number(col.seatsPerTable) || 0
-                return total + tables * seatsPerTable
-              }, 0)
+              const columns = Array.isArray(room.config?.columns) && room.config.columns ? room.config.columns : []
+              const totalSeats = columns.reduce(
+                (total, col) => total + (col?.tables || 0) * (col?.seatsPerTable || 0),
+                0,
+              )
               const isSelected = selectedRoomIds.includes(room.id)
 
               return (
@@ -548,10 +543,6 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
                               <Edit className="mr-2 h-4 w-4" />
                               Modifier
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleCreateFromRoom(room.id)}>
-                              <Plus className="mr-2 h-4 w-4" />
-                              Créer une sous-salle à partir
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openDeleteDialog([room.id])} className="text-red-600">
                               <Trash className="mr-2 h-4 w-4" />
                               Supprimer
@@ -567,7 +558,7 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
                           {room.code}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {columns.length} col. • {totalSeats} places
+                          {(Array.isArray(columns) ? columns : []).length} col. • {totalSeats} places
                         </span>
                       </div>
                     </div>

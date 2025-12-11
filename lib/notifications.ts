@@ -8,13 +8,10 @@ interface NotificationData {
   sub_room_id?: string
   proposal_id?: string
   triggered_by?: string
-  establishment_id?: string // Added establishment_id for proper filtering
 }
 
 export async function sendNotification(data: NotificationData) {
   const supabase = createClient()
-
-  console.log("[v0] Sending notification:", data)
 
   const { error } = await supabase.from("notifications").insert({
     user_id: data.user_id,
@@ -24,26 +21,16 @@ export async function sendNotification(data: NotificationData) {
     sub_room_id: data.sub_room_id,
     proposal_id: data.proposal_id,
     triggered_by: data.triggered_by,
-    establishment_id: data.establishment_id,
     is_read: false,
   })
 
   if (error) {
     console.error("[v0] Error sending notification:", error)
-  } else {
-    console.log("[v0] Notification sent successfully")
   }
 }
 
-export async function notifyPlanModified(
-  subRoomId: string,
-  subRoomName: string,
-  classIds: string[],
-  establishmentId: string,
-) {
+export async function notifyPlanModified(subRoomId: string, subRoomName: string, classIds: string[]) {
   const supabase = createClient()
-
-  console.log("[v0] Notifying plan modified for classes:", classIds)
 
   // Get all students in the affected classes
   const { data: students, error } = await supabase
@@ -57,8 +44,6 @@ export async function notifyPlanModified(
     return
   }
 
-  console.log("[v0] Found students to notify:", students.length)
-
   // Send notification to each student
   for (const student of students) {
     await sendNotification({
@@ -67,7 +52,6 @@ export async function notifyPlanModified(
       title: "Plan de classe modifié",
       message: `Le plan "${subRoomName}" a été mis à jour`,
       sub_room_id: subRoomId,
-      establishment_id: establishmentId,
     })
   }
 }
@@ -77,11 +61,8 @@ export async function notifyProposalStatusChange(
   delegateUserId: string,
   status: "approved" | "rejected",
   subRoomName: string,
-  establishmentId: string,
   rejectionReason?: string,
 ) {
-  console.log("[v0] Notifying proposal status change:", status, "for user:", delegateUserId)
-
   if (status === "approved") {
     await sendNotification({
       user_id: delegateUserId,
@@ -89,7 +70,6 @@ export async function notifyProposalStatusChange(
       title: "Proposition validée",
       message: `Votre proposition "${subRoomName}" a été validée et est maintenant active`,
       proposal_id: proposalId,
-      establishment_id: establishmentId,
     })
   } else {
     await sendNotification({
@@ -98,20 +78,12 @@ export async function notifyProposalStatusChange(
       title: "Proposition refusée",
       message: rejectionReason || `Votre proposition "${subRoomName}" a été refusée`,
       proposal_id: proposalId,
-      establishment_id: establishmentId,
     })
   }
 }
 
-export async function notifyPlanCreated(
-  subRoomId: string,
-  subRoomName: string,
-  classIds: string[],
-  establishmentId: string,
-) {
+export async function notifyPlanCreated(subRoomId: string, subRoomName: string, classIds: string[]) {
   const supabase = createClient()
-
-  console.log("[v0] Notifying plan created for classes:", classIds)
 
   const { data: students, error } = await supabase
     .from("students")
@@ -123,8 +95,6 @@ export async function notifyPlanCreated(
     console.error("[v0] Error fetching students:", error)
     return
   }
-
-  console.log("[v0] Found students to notify:", students.length)
 
   for (const student of students) {
     await sendNotification({
@@ -133,15 +103,12 @@ export async function notifyPlanCreated(
       title: "Nouveau plan de classe",
       message: `Un nouveau plan "${subRoomName}" a été créé pour votre classe`,
       sub_room_id: subRoomId,
-      establishment_id: establishmentId,
     })
   }
 }
 
-export async function notifyPlanDeleted(subRoomName: string, classIds: string[], establishmentId: string) {
+export async function notifyPlanDeleted(subRoomName: string, classIds: string[]) {
   const supabase = createClient()
-
-  console.log("[v0] Notifying plan deleted for classes:", classIds)
 
   const { data: students, error } = await supabase
     .from("students")
@@ -154,15 +121,12 @@ export async function notifyPlanDeleted(subRoomName: string, classIds: string[],
     return
   }
 
-  console.log("[v0] Found students to notify:", students.length)
-
   for (const student of students) {
     await sendNotification({
       user_id: student.profile_id!,
       type: "plan_deleted",
       title: "Plan de classe supprimé",
       message: `Le plan "${subRoomName}" a été supprimé`,
-      establishment_id: establishmentId,
     })
   }
 }

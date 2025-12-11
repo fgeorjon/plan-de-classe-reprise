@@ -316,7 +316,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              <NotificationsDropdown userId={profile.id} establishmentId={profile.establishment_id} />
+              <NotificationsDropdown userId={profile.id} />
               <Button
                 variant="outline"
                 onClick={openSettings}
