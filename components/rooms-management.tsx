@@ -33,6 +33,8 @@ import {
   X,
   LayoutTemplate,
   Sparkles,
+  Grid3x3,
+  LayoutGrid,
 } from "lucide-react"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
 import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
@@ -82,6 +84,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
   const [creationMode, setCreationMode] = useState<"template" | "custom" | null>(null)
   const [isCreateSubRoomDialogOpen, setIsCreateSubRoomDialogOpen] = useState(false)
   const [preselectedRoomId, setPreselectedRoomId] = useState<string | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false) // For template selection dialog
 
   const [formData, setFormData] = useState({
     name: "",
@@ -429,6 +432,20 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
     setIsAddDialogOpen(true)
   }
 
+  const handleCreateCustomRoom = () => {
+    setFormData({
+      name: "",
+      code: "",
+      boardPosition: "top",
+      columns: [
+        { id: "col1", tables: 5, seatsPerTable: 2 },
+        { id: "col2", tables: 5, seatsPerTable: 2 },
+        { id: "col3", tables: 4, seatsPerTable: 2 },
+      ],
+    })
+    setIsAddDialogOpen(true)
+  }
+
   const fetchRooms = async () => {
     const supabase = createClient()
     const { data } = await supabase
@@ -602,49 +619,49 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
               </div>
             )}
           </div>
-
-          {selectedRoomIds.length > 0 && canModifyRooms && (
-            <div className="flex gap-2 animate-in slide-in-from-top-2 duration-300">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDuplicateRooms(selectedRoomIds)}
-                className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Dupliquer ({selectedRoomIds.length})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id))
-                  if (selectedRooms.length === 1) {
-                    openEditDialog(selectedRooms[0])
-                  } else {
-                    toast({
-                      title: "Information",
-                      description: "Vous ne pouvez modifier qu'une seule salle à la fois",
-                    })
-                  }
-                }}
-                className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Modifier ({selectedRoomIds.length})
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => openDeleteDialog(selectedRoomIds)}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Supprimer ({selectedRoomIds.length})
-              </Button>
-            </div>
-          )}
         </div>
+
+        {selectedRoomIds.length > 0 && canModifyRooms && (
+          <div className="flex gap-2 animate-in slide-in-from-top-2 duration-300 mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDuplicateRooms(selectedRoomIds)}
+              className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Dupliquer ({selectedRoomIds.length})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id))
+                if (selectedRooms.length === 1) {
+                  openEditDialog(selectedRooms[0])
+                } else {
+                  toast({
+                    title: "Information",
+                    description: "Vous ne pouvez modifier qu'une seule salle à la fois",
+                  })
+                }
+              }}
+              className="border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Modifier ({selectedRoomIds.length})
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => openDeleteDialog(selectedRoomIds)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Supprimer ({selectedRoomIds.length})
+            </Button>
+          </div>
+        )}
 
         {viewedRoom && (
           <Card className="mb-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 shadow-xl animate-in slide-in-from-bottom-4 duration-500">
@@ -689,6 +706,44 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
               <p className="text-muted-foreground">
                 {searchQuery ? "Essayez avec un autre terme de recherche" : "Commencez par créer votre première salle"}
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {canModifyRooms && (
+          <Card className="mb-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-2xl text-emerald-900 dark:text-emerald-100">
+                Créer une nouvelle salle
+              </CardTitle>
+              <CardDescription>Utilisez un template prédéfini ou créez une configuration personnalisée</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => setIsCreateTemplateDialogOpen(true)}
+                  variant="outline"
+                  className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Créer un template
+                </Button>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  variant="outline"
+                  className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                >
+                  <Grid3x3 className="mr-2 h-5 w-5" />
+                  Templates
+                </Button>
+                <Button
+                  onClick={handleCreateCustomRoom}
+                  className="flex-1 h-20 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+                >
+                  <LayoutGrid className="mr-2 h-5 w-5" />
+                  Personnalisée
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -928,46 +983,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
             </DialogContent>
           </Dialog>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LayoutTemplate className="h-5 w-5" />
-                Créer une nouvelle salle
-              </CardTitle>
-              <CardDescription>Utilisez un template prédéfini ou créez une configuration personnalisée</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  onClick={() => setIsCreateTemplateDialogOpen(true)}
-                  size="lg"
-                  variant="outline"
-                  className="border-purple-300 hover:bg-purple-50 hover:border-purple-400 dark:border-purple-700 dark:hover:bg-purple-900/20"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Créer un template
-                </Button>
-                <Button
-                  onClick={() => setIsTemplateDialogOpen(true)}
-                  size="lg"
-                  variant="outline"
-                  className="border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
-                >
-                  <LayoutTemplate className="mr-2 h-5 w-5" />
-                  Templates
-                </Button>
-                <Button
-                  onClick={handleCustomCreation}
-                  size="lg"
-                  variant="outline"
-                  className="border-blue-300 hover:bg-blue-50 hover:border-blue-400 dark:border-blue-700 dark:hover:bg-blue-900/20 bg-transparent"
-                >
-                  <Plus className="mr-2 h-5 w-5" />
-                  Personnalisée
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Removed the old creation card */}
 
           <DeleteConfirmationDialog
             open={isDeleteDialogOpen}

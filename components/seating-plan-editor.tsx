@@ -466,35 +466,43 @@ export function SeatingPlanEditor({
     try {
       const supabase = createClient()
 
-      console.log("[v0] === SUBMISSION DEBUG ===")
-      console.log("[v0] subRoom object:", subRoom)
+      console.log("[v0] === SUBMISSION DEBUG START ===")
+      console.log("[v0] Full subRoom object:", JSON.stringify(subRoom, null, 2))
       console.log("[v0] subRoom.id:", subRoom.id)
-      console.log("[v0] subRoom.proposal_data:", subRoom.proposal_data)
-      console.log("[v0] Attempting to update proposal with ID:", subRoom.proposal_data?.id)
+      console.log("[v0] subRoom.proposal_data:", JSON.stringify(subRoom.proposal_data, null, 2))
+      console.log("[v0] proposal_data.id exists?:", !!subRoom.proposal_data?.id)
+      console.log("[v0] Using proposal ID:", subRoom.proposal_data?.id || "MISSING!")
 
       if (!subRoom.proposal_data?.id) {
+        console.error("[v0] ERROR: proposal_data.id is missing!")
         throw new Error("ID de proposition manquant")
       }
 
+      const updateData = {
+        status: "submitted",
+        updated_at: new Date().toISOString(),
+      }
+
+      console.log("[v0] Update data:", updateData)
+      console.log("[v0] Updating proposal with ID:", subRoom.proposal_data.id)
+
       const { data, error } = await supabase
         .from("sub_room_proposals")
-        .update({
-          status: "submitted",
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", subRoom.proposal_data.id)
         .select()
 
-      console.log("[v0] Update response - data:", data)
-      console.log("[v0] Update response - error:", error)
+      console.log("[v0] === RESPONSE START ===")
+      console.log("[v0] Response data:", data)
+      console.log("[v0] Response error:", error)
 
       if (error) {
-        console.error("[v0] Supabase error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        })
+        console.error("[v0] === SUPABASE ERROR DETAILS ===")
+        console.error("[v0] Error code:", error.code)
+        console.error("[v0] Error message:", error.message)
+        console.error("[v0] Error details:", error.details)
+        console.error("[v0] Error hint:", error.hint)
+        console.error("[v0] Full error object:", JSON.stringify(error, null, 2))
         throw error
       }
 
@@ -1349,7 +1357,6 @@ export function SeatingPlanEditor({
                     <div
                       key={student.id}
                       draggable
-                      // Pass student.id to handleDragStart
                       onDragStart={(e) => {
                         handleDragStart(e as any, student.id)
                         setSelectedStudent(student) // Set the selected student when dragging starts
