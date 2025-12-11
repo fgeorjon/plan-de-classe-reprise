@@ -144,16 +144,23 @@ export function RoomsManagement({ initialRooms, establishmentId }: RoomsManageme
   }
 
   const calculateTotalSeats = () => {
-    const columns = Array.isArray(formData.columns) ? formData.columns : []
-    return columns.reduce((total, column) => {
-      return total + (column?.tables || 0) * (column?.seatsPerTable || 0)
+    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
+
+    return formData.columns.reduce((total, column) => {
+      if (!column || typeof column !== "object") return total
+      const tables = Number(column.tables) || 0
+      const seatsPerTable = Number(column.seatsPerTable) || 0
+      return total + tables * seatsPerTable
     }, 0)
   }
 
   const calculateTotalWidth = () => {
-    const columns = Array.isArray(formData.columns) ? formData.columns : []
-    return columns.reduce((total, column) => {
-      return total + (column?.seatsPerTable || 0)
+    if (!formData?.columns || !Array.isArray(formData.columns)) return 0
+
+    return formData.columns.reduce((total, column) => {
+      if (!column || typeof column !== "object") return total
+      const seatsPerTable = Number(column.seatsPerTable) || 0
+      return total + seatsPerTable
     }, 0)
   }
 

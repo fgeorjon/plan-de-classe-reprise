@@ -41,6 +41,8 @@ import { Badge } from "@/components/ui/badge"
 import cn from "classnames"
 import { notifyPlanModified } from "@/lib/notifications"
 import { Toaster } from "@/components/ui/toaster" // Imported Toaster
+import { useRouter } from "next/navigation" // Import useRouter for navigation
+import { sendNotification } from "@/lib/notifications" // Import sendNotification
 
 interface Student {
   id: string
@@ -81,12 +83,13 @@ interface SubRoom {
     class_id: string
     name: string
     seat_assignments: { seat_id: string; student_id: string; seat_number: number }[]
-    status: "pending" | "approved" | "rejected"
+    status: "pending" | "approved" | "rejected" | "submitted" // Added "submitted"
     is_submitted: boolean
     reviewed_by: string | null
     reviewed_at: string | null
     created_at: string
     updated_at: string
+    proposed_by: string // Added for notifications
   }
 }
 
@@ -122,6 +125,7 @@ export function SeatingPlanEditor({
   userRole,
   userId,
 }: SeatingPlanEditorProps) {
+  const router = useRouter() // Initialize useRouter
   const [students, setStudents] = useState<Student[]>([])
   const [assignments, setAssignments] = useState<Map<number, string>>(new Map())
   const [savedAssignments, setSavedAssignments] = useState<Map<number, string>>(new Map())
@@ -145,6 +149,7 @@ export function SeatingPlanEditor({
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [isLoadingRoom, setIsLoadingRoom] = useState(false)
   const [roomError, setRoomError] = useState<string | null>(null)
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null) // Added state for selected student
 
   // Memoized fetchData to prevent unnecessary re-renders and to satisfy dependency array
   const fetchData = useCallback(async () => {
@@ -208,7 +213,7 @@ export function SeatingPlanEditor({
     } else {
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("seating_assignments")
-        .select("student_id, seat_position")
+        .select("student_id, seat_position") // Removed seat_number
         .eq("sub_room_id", subRoom.id)
 
       if (assignmentsError) {
@@ -305,6 +310,45 @@ export function SeatingPlanEditor({
     e.preventDefault()
   }
 
+  const handleDrop = (e: React.DragEvent, seatNumber: number) => {
+    e.preventDefault()
+    const studentId = e.dataTransfer.getData("studentId")
+    if (!studentId) return
+
+    const studentToPlace = students.find((s) => s.id === studentId)
+    if (!studentToPlace) return
+
+    const currentStudentIdInSeat = assignments.get(seatNumber)
+
+    // If the seat is occupied by the dragged student, do nothing
+    if (currentStudentIdInSeat === studentId) {
+      setDraggedStudent(null) // Clear dragged student state
+      return
+    }
+
+    // If the seat is occupied by another student, remove that student
+    if (currentStudentIdInSeat) {
+      const currentStudentCurrentSeat = Array.from(assignments.entries()).find(
+        ([_, id]) => id === currentStudentIdInSeat,
+      )?.[0]
+      if (currentStudentCurrentSeat !== undefined) {
+        assignments.delete(currentStudentCurrentSeat)
+      }
+    }
+
+    const newAssignments = new Map(assignments)
+    newAssignments.set(seatNumber, studentId)
+    setAssignments(newAssignments)
+
+    toast({
+      title: "Élève placé",
+      description: `${studentToPlace.first_name} ${studentToPlace.last_name} a été placé sur la place ${seatNumber}.`,
+    })
+
+    setDraggedStudent(null) // Clear dragged student state after drop
+    setSelectedStudent(null) // Clear selected student
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
 
@@ -319,7 +363,7 @@ export function SeatingPlanEditor({
         const assignmentsToSave = Array.from(assignments.entries()).map(([seatNumber, studentId]) => ({
           seat_id: `seat-${seatNumber}`,
           student_id: studentId,
-          seat_number: seatNumber,
+          seat_number: seatNumber, // Include seat_number
         }))
 
         const { error } = await supabase
@@ -337,6 +381,7 @@ export function SeatingPlanEditor({
         toast({
           title: "Succès",
           description: "Votre plan a été sauvegardé",
+          className: "z-[9999]",
         })
       } else {
         // Normal save to seating_assignments
@@ -352,7 +397,7 @@ export function SeatingPlanEditor({
             sub_room_id: subRoom.id,
             seat_id: `seat-${seatNumber}`,
             student_id: studentId,
-            seat_number: seatNumber,
+            seat_position: seatNumber, // Use seat_position instead of seat_number
           }))
 
           console.log("[v0] Assignments to insert:", assignmentsToSave)
@@ -397,6 +442,7 @@ export function SeatingPlanEditor({
         toast({
           title: "Succès",
           description: "Le plan de classe a été sauvegardé",
+          className: "z-[9999]",
         })
       }
     } catch (error: any) {
@@ -405,6 +451,7 @@ export function SeatingPlanEditor({
         title: "Erreur",
         description: error.message || "Impossible de sauvegarder le plan",
         variant: "destructive",
+        className: "z-[9999]",
       })
     } finally {
       setIsSaving(false)
@@ -419,37 +466,31 @@ export function SeatingPlanEditor({
     try {
       const supabase = createClient()
 
-      // First save the current plan
-      const assignmentsToSave = Array.from(assignments.entries()).map(([seatNumber, studentId]) => ({
-        seat_id: `seat-${seatNumber}`,
-        student_id: studentId,
-        seat_number: seatNumber,
-      }))
-
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("sub_room_proposals")
         .update({
-          seat_assignments: assignmentsToSave,
-          status: "pending",
-          is_submitted: true,
+          status: "submitted",
           updated_at: new Date().toISOString(),
         })
         .eq("id", subRoom.id)
 
-      if (updateError) throw updateError
+      if (error) throw error
 
       toast({
-        title: "Proposition soumise",
-        description: "Le professeur a été notifié",
+        title: "Succès",
+        description: "Votre proposition a été soumise au professeur",
+        className: "z-[9999]",
       })
 
-      if (onClose) onClose()
+      // Redirect to sandbox
+      router.push("/dashboard/sandbox")
     } catch (error: any) {
       console.error("[v0] Error submitting proposal:", error)
       toast({
         title: "Erreur",
         description: error.message || "Impossible de soumettre la proposition",
         variant: "destructive",
+        className: "z-[9999]",
       })
     } finally {
       setIsSubmitting(false)
@@ -467,7 +508,6 @@ export function SeatingPlanEditor({
 
       // Create or update sub-room
       if (proposal?.sub_room_id) {
-        // Update existing sub-room
         const { error: deleteError } = await supabase
           .from("seating_assignments")
           .delete()
@@ -480,12 +520,15 @@ export function SeatingPlanEditor({
             sub_room_id: proposal.sub_room_id,
             seat_id: `seat-${seatNumber}`,
             student_id: studentId,
-            seat_number: seatNumber,
+            seat_position: seatNumber, // Ensure seat_position is used
           }))
 
           const { error: insertError } = await supabase.from("seating_assignments").insert(assignmentsToSave)
 
-          if (insertError) throw insertError
+          if (insertError) {
+            console.error("[v0] Error imposing plan:", insertError)
+            throw insertError
+          }
         }
 
         // Update proposal status
@@ -499,8 +542,19 @@ export function SeatingPlanEditor({
           .eq("id", subRoom.id)
 
         if (updateError) throw updateError
+
+        // Notify delegate
+        await sendNotification({
+          userId: proposal.proposed_by,
+          establishmentId: subRoom.establishment_id || "", // Assuming establishmentId is available in subRoom or can be fetched
+          type: "plan_validated",
+          title: "Proposition validée",
+          message: `Le professeur a imposé son plan pour "${proposal.name}"`,
+          subRoomId: proposal.sub_room_id,
+          proposalId: subRoom.id,
+          triggeredBy: userId,
+        })
       } else {
-        // Create new sub-room
         const { data: subRoomData, error: subRoomError } = await supabase
           .from("sub_rooms")
           .insert({
@@ -521,12 +575,15 @@ export function SeatingPlanEditor({
             sub_room_id: subRoomData.id,
             seat_id: `seat-${seatNumber}`,
             student_id: studentId,
-            seat_number: seatNumber,
+            seat_position: seatNumber, // Ensure seat_position is used
           }))
 
           const { error: assignmentsError } = await supabase.from("seating_assignments").insert(assignmentsToSave)
 
-          if (assignmentsError) throw assignmentsError
+          if (assignmentsError) {
+            console.error("[v0] Error imposing plan:", assignmentsError)
+            throw assignmentsError
+          }
         }
 
         // Update proposal
@@ -541,89 +598,122 @@ export function SeatingPlanEditor({
           .eq("id", subRoom.id)
 
         if (updateError) throw updateError
+
+        // Notify delegate
+        await sendNotification({
+          userId: proposal!.proposed_by,
+          establishmentId: subRoom.establishment_id || "", // Assuming establishmentId is available in subRoom or can be fetched
+          type: "plan_validated",
+          title: "Proposition validée",
+          message: `Le professeur a validé votre proposition "${proposal!.name}"`,
+          subRoomId: subRoomData.id,
+          proposalId: subRoom.id,
+          triggeredBy: userId,
+        })
       }
 
       toast({
-        title: "Plan validé",
-        description: "La sous-salle a été créée/mise à jour avec vos modifications",
+        title: "Succès",
+        description: "Le plan a été imposé avec succès",
+        className: "z-[9999]",
       })
 
-      if (onClose) onClose()
+      // Redirect to sandbox
+      router.push("/dashboard/sandbox")
     } catch (error: any) {
       console.error("[v0] Error imposing plan:", error)
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de valider le plan",
+        description: error.message || "Impossible d'imposer le plan",
         variant: "destructive",
+        className: "z-[9999]",
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleDrop = (e: React.DragEvent, seatNumber: number) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const studentId = e.dataTransfer.getData("studentId")
-    if (!studentId) return
-
-    const newAssignments = new Map(assignments)
-    const currentStudentId = newAssignments.get(seatNumber)
-
-    if (currentStudentId === studentId) {
-      setDraggedStudent(null)
+  const handleSeatClick = (seatNumber: number) => {
+    if (!selectedStudent) {
+      // If no student is selected, and the seat is occupied, show the remove confirmation
+      const studentId = assignments.get(seatNumber)
+      if (studentId) {
+        // Check if user has disabled confirmation
+        const dontShow = localStorage.getItem("dontShowRemoveConfirmation") === "true"
+        if (dontShow) {
+          // Remove directly
+          const newAssignments = new Map(assignments)
+          newAssignments.delete(seatNumber)
+          setAssignments(newAssignments)
+          toast({
+            title: "Élève retiré",
+            description: "L'élève a été retiré du plan de classe",
+          })
+        } else {
+          // Show confirmation dialog
+          setStudentToRemove(studentId)
+          setShowRemoveConfirmation(true)
+        }
+      } else {
+        // If seat is empty and no student is selected, open student selection dialog
+        setSelectedSeatForDialog(seatNumber)
+      }
       return
     }
 
-    let draggedStudentCurrentSeat: number | null = null
-    for (const [seat, id] of newAssignments.entries()) {
-      if (id === studentId) {
-        draggedStudentCurrentSeat = seat
-        break
-      }
+    // If a student is selected
+    // Check if student is already placed
+    const existingPlacement = Array.from(assignments.entries()).find(
+      ([_, studentId]) => studentId === selectedStudent.id,
+    )
+
+    if (existingPlacement && existingPlacement[0] !== seatNumber) {
+      toast({
+        title: "Élève déjà placé",
+        description: "Cet élève est déjà placé. Retirez-le d'abord de sa place actuelle.",
+        variant: "destructive",
+        className: "z-[9999]",
+      })
+      return
     }
 
-    // If the seat is occupied by another student, swap them
-    if (currentStudentId) {
-      if (draggedStudentCurrentSeat !== null) {
-        newAssignments.set(draggedStudentCurrentSeat, currentStudentId)
-      }
-      newAssignments.set(seatNumber, studentId)
-    } else {
-      // If the seat is empty, just place the student
-      if (draggedStudentCurrentSeat !== null) {
-        newAssignments.delete(draggedStudentCurrentSeat)
-      }
-      newAssignments.set(seatNumber, studentId)
-    }
+    const currentStudentInSeat = assignments.get(seatNumber)
 
-    setAssignments(newAssignments)
-    setDraggedStudent(null)
-  }
-
-  const handleSeatClick = (seatNumber: number) => {
-    const studentId = assignments.get(seatNumber)
-    if (studentId) {
-      // Check if user has disabled confirmation
-      const dontShow = localStorage.getItem("dontShowRemoveConfirmation") === "true"
-      if (dontShow) {
-        // Remove directly
-        const newAssignments = new Map(assignments)
-        newAssignments.delete(seatNumber)
-        setAssignments(newAssignments)
-        toast({
-          title: "Élève retiré",
-          description: "L'élève a été retiré du plan de classe",
-        })
-      } else {
-        // Show confirmation dialog
-        setStudentToRemove(studentId)
-        setShowRemoveConfirmation(true)
-      }
+    // If the seat is occupied by the selected student, remove them (effectively unselecting)
+    if (currentStudentInSeat === selectedStudent.id) {
+      const newAssignments = new Map(assignments)
+      newAssignments.delete(seatNumber)
+      setAssignments(newAssignments)
+      setSelectedStudent(null) // Unselect the student
+      toast({
+        title: "Élève retiré",
+        description: "L'élève a été retiré du plan de classe",
+      })
     } else {
-      // If seat is empty, show student selection dialog
-      setSelectedSeatForDialog(seatNumber)
+      // Assign the selected student to the seat
+      const newAssignments = new Map(assignments)
+      // If the seat is occupied by another student, remove that student first
+      if (currentStudentInSeat) {
+        // Find the seat of the current student and remove them
+        const currentStudentSeat = Array.from(assignments.entries()).find(([_, id]) => id === currentStudentInSeat)?.[0]
+        if (currentStudentSeat !== undefined) {
+          newAssignments.delete(currentStudentSeat)
+        }
+        // Also remove the student from the unassigned list if they were there
+        const studentToRemoveFromList = students.find((s) => s.id === currentStudentInSeat)
+        if (studentToRemoveFromList) {
+          // This logic might need refinement depending on how unassigned list is managed
+          // For now, we assume the UI will update based on the assignments map
+        }
+      }
+
+      newAssignments.set(seatNumber, selectedStudent.id)
+      setAssignments(newAssignments)
+      setSelectedStudent(null) // Unselect the student after placing
+      toast({
+        title: "Élève placé",
+        description: `${selectedStudent.first_name} ${selectedStudent.last_name} a été placé sur la place ${seatNumber}.`,
+      })
     }
   }
 
@@ -659,13 +749,11 @@ export function SeatingPlanEditor({
   }
 
   const handleRemoveFromSeat = (seatNumber: number) => {
-    const newAssignments = new Map(assignments)
-    newAssignments.delete(seatNumber)
-    setAssignments(newAssignments)
-    toast({
-      title: "Élève retiré",
-      description: "L'élève a été retiré du plan de classe",
-    })
+    const studentId = assignments.get(seatNumber)
+    if (studentId) {
+      setStudentToRemove(studentId)
+      setShowRemoveConfirmation(true)
+    }
   }
 
   const handleRandomPlacementAll = () => {
@@ -768,12 +856,6 @@ export function SeatingPlanEditor({
     })
   }
 
-  // Duplicate handleSave function removed.
-
-  // Duplicate handleSubmit function removed.
-
-  // Duplicate handleImpose function removed.
-
   const handleDropToUnplacedArea = () => {
     if (draggedStudent) {
       console.log("[v0] Removing student from seat:", draggedStudent)
@@ -795,6 +877,7 @@ export function SeatingPlanEditor({
       }
 
       setDraggedStudent(null)
+      setSelectedStudent(null) // Clear selected student when dropping to unplaced
     }
   }
 
@@ -818,34 +901,37 @@ export function SeatingPlanEditor({
     if (draggedStudent) {
       if (seatNumber !== undefined) {
         // If dropped on a seat, handle drop
-        const newAssignments = new Map(assignments)
-        const currentStudentId = newAssignments.get(seatNumber)
+        const studentToPlace = students.find((s) => s.id === draggedStudent)
+        if (!studentToPlace) return
 
+        const currentStudentId = assignments.get(seatNumber)
+
+        // If the seat is occupied by the dragged student, do nothing
         if (currentStudentId === draggedStudent) {
           setDraggedStudent(null)
           return
         }
 
-        let draggedStudentCurrentSeat: number | null = null
-        for (const [seat, id] of newAssignments.entries()) {
-          if (id === draggedStudent) {
-            draggedStudentCurrentSeat = seat
-            break
+        // If the seat is occupied by another student, swap them
+        if (currentStudentId) {
+          // Find the current student's current seat and remove them
+          const currentStudentCurrentSeat = Array.from(assignments.entries()).find(
+            ([_, id]) => id === currentStudentId,
+          )?.[0]
+          if (currentStudentCurrentSeat !== undefined) {
+            assignments.delete(currentStudentCurrentSeat)
           }
         }
 
-        if (currentStudentId) {
-          if (draggedStudentCurrentSeat !== null) {
-            newAssignments.set(draggedStudentCurrentSeat, currentStudentId)
-          }
-          newAssignments.set(seatNumber, draggedStudent)
-        } else {
-          if (draggedStudentCurrentSeat !== null) {
-            newAssignments.delete(draggedStudentCurrentSeat)
-          }
-          newAssignments.set(seatNumber, draggedStudent)
-        }
+        const newAssignments = new Map(assignments)
+        newAssignments.set(seatNumber, draggedStudent)
         setAssignments(newAssignments)
+        setSelectedStudent(null) // Clear selected student
+
+        toast({
+          title: "Élève placé",
+          description: `${studentToPlace.first_name} ${studentToPlace.last_name} a été placé sur la place ${seatNumber}.`,
+        })
       } else {
         // If dropped outside a seat (e.g., on the unplaced list), remove from seat
         handleDropToUnplacedArea()
@@ -1242,7 +1328,10 @@ export function SeatingPlanEditor({
                       key={student.id}
                       draggable
                       // Pass student.id to handleDragStart
-                      onDragStart={(e) => handleDragStart(e as any, student.id)}
+                      onDragStart={(e) => {
+                        handleDragStart(e as any, student.id)
+                        setSelectedStudent(student) // Set the selected student when dragging starts
+                      }}
                       onTouchStart={(e) => handleTouchStart(e as any, student.id)}
                       onTouchMove={handleTouchMove}
                       onTouchEnd={handleTouchEnd}
@@ -1365,10 +1454,17 @@ export function SeatingPlanEditor({
                   variant="outline"
                   className="w-full justify-start text-left h-auto py-3 bg-transparent"
                   onClick={() => {
+                    // Assign student to the selected seat
                     const newAssignments = new Map(assignments)
                     newAssignments.set(selectedSeatForDialog!, student.id)
                     setAssignments(newAssignments)
-                    setSelectedSeatForDialog(null)
+                    setSelectedStudent(null) // Clear selected student
+                    setSelectedSeatForDialog(null) // Close the dialog
+
+                    toast({
+                      title: "Élève placé",
+                      description: `${student.first_name} ${student.last_name} a été placé sur la place ${selectedSeatForDialog}.`,
+                    })
                   }}
                 >
                   <div className="flex flex-col items-start gap-1">
@@ -1429,7 +1525,10 @@ export function SeatingPlanEditor({
                   <div
                     key={student.id}
                     draggable
-                    onDragStart={() => handleDragStart(null as any, student.id)} // Pass student ID
+                    onDragStart={() => {
+                      handleDragStart(null as any, student.id)
+                      setSelectedStudent(student) // Set the selected student when dragging starts
+                    }}
                     className="flex items-center gap-2 p-2 bg-white border rounded-md cursor-move hover:bg-gray-50 transition-colors"
                   >
                     <User className="h-4 w-4 text-gray-400" />

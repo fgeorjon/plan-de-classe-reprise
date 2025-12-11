@@ -70,7 +70,7 @@ export function ReviewProposalDialog({
             sub_room_id: proposal.sub_room_id,
             seat_id: assignment.seat_id,
             student_id: assignment.student_id,
-            seat_number: assignment.seat_number,
+            seat_position: assignment.seat_number, // Use seat_position instead of seat_number
           }))
 
           const { error: assignmentsError } = await supabase.from("seating_assignments").insert(assignments)
@@ -111,7 +111,7 @@ export function ReviewProposalDialog({
             sub_room_id: subRoomData.id,
             seat_id: assignment.seat_id,
             student_id: assignment.student_id,
-            seat_number: assignment.seat_number,
+            seat_position: assignment.seat_number, // Use seat_position instead of seat_number
           }))
 
           const { error: assignmentsError } = await supabase.from("seating_assignments").insert(assignments)
@@ -163,6 +163,7 @@ export function ReviewProposalDialog({
         description: proposal.sub_room_id
           ? "Sous-salle mise à jour avec succès"
           : "Proposition validée et sous-salle créée",
+        className: "z-[9999]", // Added z-index for toast visibility
       })
 
       onSuccess()
@@ -173,6 +174,7 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: error.message || "Impossible de valider la proposition",
         variant: "destructive",
+        className: "z-[9999]", // Added z-index for toast visibility
       })
     } finally {
       setIsLoading(false)
@@ -186,6 +188,7 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: "Veuillez indiquer une raison pour le refus",
         variant: "destructive",
+        className: "z-[9999]", // Added z-index for toast visibility
       })
       return
     }
@@ -211,6 +214,7 @@ export function ReviewProposalDialog({
       toast({
         title: "Proposition refusée",
         description: "Le délégué a été notifié du refus",
+        className: "z-[9999]", // Added z-index for toast visibility
       })
 
       onSuccess()
@@ -221,6 +225,7 @@ export function ReviewProposalDialog({
         title: "Erreur",
         description: error.message || "Impossible de refuser la proposition",
         variant: "destructive",
+        className: "z-[9999]", // Added z-index for toast visibility
       })
     } finally {
       setIsLoading(false)
@@ -258,7 +263,7 @@ export function ReviewProposalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl z-[9999]">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>{proposal.name}</DialogTitle>
