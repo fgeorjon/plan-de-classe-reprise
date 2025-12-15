@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { toast } from "react-toastify"
+import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/use-auth"
 import {
   ArrowLeft,
@@ -37,12 +37,11 @@ import {
   Trash2,
 } from "lucide-react"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
-import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
-import { CreateTemplateDialog } from "@/components/create-template-dialog"
-import { CreateSubRoomDialog } from "@/components/create-sub-room-dialog"
+import { TemplateSelectionDialog } from "./template-selection-dialog"
+import { CreateTemplateDialog } from "./create-template-dialog"
+import { CreateSubRoomDialog } from "./create-sub-room-dialog"
 import type { RoomTemplate } from "@/components/room-templates"
-import { Toaster } from "react-hot-toast"
-import { RoomVisualization } from "./room-visualization"
+import { RoomVisualization } from "./room-visualization" // Declare RoomVisualization here
 
 interface Room {
   id: string
@@ -983,8 +982,6 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
           userRole={effectiveUserRole} // Use effectiveUserRole
         />
       </div>
-
-      <Toaster />
     </div>
   )
 }

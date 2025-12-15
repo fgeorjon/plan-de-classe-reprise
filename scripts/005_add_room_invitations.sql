@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS room_invitations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id uuid REFERENCES rooms(id) ON DELETE CASCADE,
   invited_teacher_id uuid REFERENCES teachers(id) ON DELETE CASCADE,
-  invited_by uuid REFERENCES profiles(id),
+  invited_by uuid REFERENCES profiles(id) ON DELETE CASCADE,
   status text CHECK (status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_room_invitations_status ON room_invitations(statu
 -- Enable RLS
 ALTER TABLE room_invitations ENABLE ROW LEVEL SECURITY;
 
+-- Fixed RLS policies to use profile_id instead of user_id
 -- Policies for room_invitations
 CREATE POLICY "Users can view their own invitations"
   ON room_invitations FOR SELECT

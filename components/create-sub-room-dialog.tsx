@@ -15,13 +15,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Info } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { notifyRoomInvitation } from "@/lib/notifications"
 
 interface Teacher {
   id: string
   first_name: string
   last_name: string
   subject: string
+  profile_id: string
 }
 
 interface Class {
@@ -59,6 +62,7 @@ export function CreateSubRoomDialog({
   const [classes, setClasses] = useState<Class[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     roomId: "",
@@ -82,6 +86,8 @@ export function CreateSubRoomDialog({
 
           if (cookieSession) {
             const sessionData = JSON.parse(decodeURIComponent(cookieSession))
+            setCurrentUserId(sessionData.id)
+
             const { data: teacher } = await supabase
               .from("teachers")
               .select("id")
@@ -134,6 +140,18 @@ export function CreateSubRoomDialog({
   }
 
   const handleToggleTeacher = (teacherId: string) => {
+    const isProfessor = userRole === "professeur"
+
+    if (isProfessor && !formData.isCollaborative && teacherId !== currentTeacherId) {
+      toast({
+        title: "Action non autorisée",
+        description:
+          "Vous ne pouvez créer une salle individuelle que pour vous-même. Cochez 'Salle collaborative' pour inviter d'autres professeurs.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setFormData((prev) => {
       let newTeachers: string[]
 
@@ -250,7 +268,27 @@ export function CreateSubRoomDialog({
           console.error("[v0] Error adding teachers:", teachersError)
           throw teachersError
         }
+
+        const otherTeachers = formData.selectedTeachers.filter((id) => id !== currentTeacherId)
+        for (const teacherId of otherTeachers) {
+          const teacher = teachers.find((t) => t.id === teacherId)
+          if (teacher && teacher.profile_id && currentUserId) {
+            await notifyRoomInvitation(subRoom.id, subRoom.name, teacher.profile_id, currentUserId, establishmentId)
+          }
+        }
+
+        if (otherTeachers.length > 0) {
+          toast({
+            title: "Invitations envoyées",
+            description: `${otherTeachers.length} professeur(s) ont été invité(s) à rejoindre la salle.`,
+          })
+        }
       }
+
+      toast({
+        title: "Sous-salle créée",
+        description: `La sous-salle "${subRoom.name}" a été créée avec succès.`,
+      })
 
       setFormData({
         roomId: "",
@@ -269,7 +307,11 @@ export function CreateSubRoomDialog({
       }, 500)
     } catch (error) {
       console.error("[v0] Error creating sub-room:", error)
-      alert("Erreur lors de la création de la sous-salle. Veuillez réessayer.")
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la sous-salle. Veuillez réessayer.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -279,9 +321,11 @@ export function CreateSubRoomDialog({
   const isProfessor = userRole === "professeur"
 
   const displayedTeachers =
-    formData.isCollaborative && isProfessor && currentTeacherId
-      ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
-      : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
+    isProfessor && !formData.isCollaborative
+      ? teachers.filter((t) => t.id === currentTeacherId)
+      : formData.isCollaborative && isProfessor && currentTeacherId
+        ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
+        : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -309,7 +353,7 @@ export function CreateSubRoomDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Nom personnalisé</Label>
+            <Label>Nom personnalisé (optionnel)</Label>
             <Input
               value={formData.customName}
               onChange={(e) => setFormData({ ...formData, customName: e.target.value })}
@@ -318,7 +362,7 @@ export function CreateSubRoomDialog({
           </div>
 
           {isProfessor && (
-            <div className="flex items-center gap-2 border rounded-md p-3">
+            <div className="flex items-center gap-2 border rounded-md p-3 bg-blue-50 dark:bg-blue-950">
               <Checkbox
                 id="collaborative"
                 checked={formData.isCollaborative}
@@ -330,9 +374,22 @@ export function CreateSubRoomDialog({
                   })
                 }}
               />
-              <Label htmlFor="collaborative" className="cursor-pointer text-sm">
-                Salle collaborative (multi-professeurs)
+              <Label htmlFor="collaborative" className="cursor-pointer text-sm flex-1">
+                <div className="font-medium">Salle collaborative (multi-professeurs)</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Cochez cette case pour inviter d'autres professeurs à cette salle
+                </div>
               </Label>
+            </div>
+          )}
+
+          {isProfessor && !formData.isCollaborative && (
+            <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950 rounded-md p-3 flex items-start gap-2">
+              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Mode individuel :</strong> Vous créez cette salle uniquement pour vous. Pour inviter d'autres
+                professeurs, activez le mode collaboratif.
+              </p>
             </div>
           )}
 
@@ -365,7 +422,10 @@ export function CreateSubRoomDialog({
 
           {isProfessor && formData.isCollaborative && (
             <div className="space-y-2">
-              <Label>Autres professeurs</Label>
+              <Label>Inviter d'autres professeurs (optionnel)</Label>
+              <p className="text-sm text-muted-foreground">
+                Les professeurs invités recevront une notification et pourront accepter ou refuser l'invitation
+              </p>
               {displayedTeachers.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4">
                   Aucun autre professeur disponible
