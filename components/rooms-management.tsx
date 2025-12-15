@@ -18,8 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { toast } from "@/components/ui/use-toast"
-import { Toaster } from "@/components/ui/toaster"
+import { toast } from "react-toastify"
 import { useAuth } from "@/lib/use-auth"
 import {
   ArrowLeft,
@@ -42,6 +41,8 @@ import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
 import { CreateTemplateDialog } from "@/components/create-template-dialog"
 import { CreateSubRoomDialog } from "@/components/create-sub-room-dialog"
 import type { RoomTemplate } from "@/components/room-templates"
+import { Toaster } from "react-hot-toast"
+import { RoomVisualization } from "./room-visualization"
 
 interface Room {
   id: string
@@ -62,15 +63,20 @@ interface Room {
 }
 
 interface RoomsManagementProps {
-  rooms: Room[]
+  rooms?: Room[]
   establishmentId: string
+  userRole?: string
+  userId?: string
+  onBack?: () => void
 }
 
-export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsManagementProps) {
-  const { user } = useAuth()
+export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBack }: RoomsManagementProps) {
+  const supabase = createClient()
   const router = useRouter()
-  const [rooms, setRooms] = useState(initialRooms)
-  const [filteredRooms, setFilteredRooms] = useState(initialRooms)
+  const { user } = useAuth()
+
+  const [localRooms, setLocalRooms] = useState<Room[]>(rooms || [])
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>(rooms || [])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
   const [viewedRoom, setViewedRoom] = useState<Room | null>(null)
@@ -98,24 +104,44 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
     ],
   })
 
+  // Renamed to match dialog state
+  const showCreateTemplateDialog = isCreateTemplateDialogOpen
+  const showTemplatesDialog = isTemplateDialogOpen
+
+  useEffect(() => {
+    fetchRooms()
+  }, [establishmentId])
+
+  async function fetchRooms() {
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("establishment_id", establishmentId)
+      .order("name")
+
+    if (error) {
+      console.error("[v0] Error fetching rooms:", error)
+      toast.error("Impossible de charger les salles")
+    } else {
+      setLocalRooms(data || [])
+      setFilteredRooms(data || []) // Ensure filteredRooms is also updated
+    }
+  }
+
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredRooms(rooms)
+      setFilteredRooms(localRooms)
     } else {
       const query = searchQuery.toLowerCase()
       setFilteredRooms(
-        rooms.filter((room) => room.name.toLowerCase().includes(query) || room.code.toLowerCase().includes(query)),
+        localRooms.filter((room) => room.name.toLowerCase().includes(query) || room.code.toLowerCase().includes(query)),
       )
     }
-  }, [searchQuery, rooms])
+  }, [searchQuery, localRooms]) // Depend on localRooms now
 
   const handleAddColumn = () => {
     if (formData.columns.length >= 4) {
-      toast({
-        title: "Limite atteinte",
-        description: "Vous ne pouvez pas ajouter plus de 4 colonnes",
-        variant: "destructive",
-      })
+      toast.error("Vous ne pouvez pas ajouter plus de 4 colonnes")
       return
     }
 
@@ -127,11 +153,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
 
   const handleRemoveColumn = (index: number) => {
     if (formData.columns.length <= 1) {
-      toast({
-        title: "Erreur",
-        description: "Vous devez avoir au moins une colonne",
-        variant: "destructive",
-      })
+      toast.error("Vous devez avoir au moins une colonne")
       return
     }
 
@@ -170,31 +192,19 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
 
   const handleAddRoom = async () => {
     if (!formData.name.trim() || !formData.code.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Le nom et le code de la salle sont requis",
-        variant: "destructive",
-      })
+      toast.error("Le nom et le code de la salle sont requis")
       return
     }
 
     const totalSeats = calculateTotalSeats()
     if (totalSeats > 350) {
-      toast({
-        title: "Erreur",
-        description: "Le nombre total de places ne peut pas dépasser 350",
-        variant: "destructive",
-      })
+      toast.error("Le nombre total de places ne peut pas dépasser 350")
       return
     }
 
     const totalWidth = calculateTotalWidth()
     if (totalWidth > 10) {
-      toast({
-        title: "Erreur",
-        description: "Le nombre total de places en largeur ne peut pas dépasser 10",
-        variant: "destructive",
-      })
+      toast.error("Le nombre total de places en largeur ne peut pas dépasser 10")
       return
     }
 
@@ -218,7 +228,10 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
 
       if (error) throw error
 
-      setRooms([...rooms, data])
+      // Update local state directly instead of refetching everything if possible
+      setLocalRooms((prevRooms) => [...prevRooms, data])
+      setFilteredRooms((prevFilteredRooms) => [...prevFilteredRooms, data]) // Update filteredRooms as well
+
       setIsAddDialogOpen(false)
       setFormData({
         name: "",
@@ -231,17 +244,10 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
         ],
       })
 
-      toast({
-        title: "Salle créée",
-        description: `La salle ${formData.name} a été créée avec ${totalSeats} places`,
-      })
+      toast.success(`La salle ${formData.name} a été créée avec ${totalSeats} places`)
     } catch (error: any) {
       console.error("[v0] Error creating room:", error)
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer la salle",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Impossible de créer la salle")
     } finally {
       setIsLoading(false)
     }
@@ -250,7 +256,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
   const handleDuplicateRooms = async (roomIds: string[]) => {
     try {
       const supabase = createClient()
-      const roomsToDuplicate = rooms.filter((r) => roomIds.includes(r.id))
+      const roomsToDuplicate = localRooms.filter((r) => roomIds.includes(r.id)) // Use localRooms
 
       for (const room of roomsToDuplicate) {
         const { error } = await supabase.from("rooms").insert({
@@ -265,30 +271,14 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
         if (error) throw error
       }
 
-      toast({
-        title: "Salles dupliquées",
-        description: `${roomIds.length} salle(s) dupliquée(s) avec succès`,
-      })
+      toast.success(`${roomIds.length} salle(s) dupliquée(s) avec succès`)
 
       // Refresh rooms list
-      const { data } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .order("created_at", { ascending: false })
-
-      if (data) {
-        setRooms(data)
-        setFilteredRooms(data) // Update filtered rooms as well
-      }
+      fetchRooms() // Use the refetch function
 
       setSelectedRoomIds([])
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de dupliquer les salles",
-        variant: "destructive",
-      })
+      toast.error("Impossible de dupliquer les salles")
     }
   }
 
@@ -296,11 +286,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
     if (!editingRoom) return
 
     if (!formData.name.trim() || !formData.code.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Le nom et le code de la salle sont requis",
-        variant: "destructive",
-      })
+      toast.error("Le nom et le code de la salle sont requis")
       return
     }
 
@@ -322,31 +308,15 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
       if (error) throw error
 
       // Refresh rooms list
-      const { data } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .order("created_at", { ascending: false })
-
-      if (data) {
-        setRooms(data)
-        setFilteredRooms(data) // Update filtered rooms as well
-      }
+      fetchRooms() // Use the refetch function
 
       setIsEditDialogOpen(false)
       setEditingRoom(null)
 
-      toast({
-        title: "Salle modifiée",
-        description: `La salle ${formData.name} a été modifiée avec succès`,
-      })
+      toast.success(`La salle ${formData.name} a été modifiée avec succès`)
     } catch (error: any) {
       console.error("[v0] Error editing room:", error)
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de modifier la salle",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Impossible de modifier la salle")
     } finally {
       setIsLoading(false)
     }
@@ -368,22 +338,15 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
 
       if (error) throw error
 
-      setRooms(rooms.filter((r) => !idsToDelete.includes(r.id)))
+      setLocalRooms(localRooms.filter((r) => !idsToDelete.includes(r.id))) // Update localRooms
       setFilteredRooms(filteredRooms.filter((r) => !idsToDelete.includes(r.id))) // Update filtered rooms
       setSelectedRoomIds([])
       setRoomsToDelete([])
       setIsDeleteDialogOpen(false) // Close the dialog after successful deletion
 
-      toast({
-        title: "Salle(s) supprimée(s)",
-        description: `${idsToDelete.length} salle(s) supprimée(s) avec succès`,
-      })
+      toast.success(`${idsToDelete.length} salle(s) supprimée(s) avec succès`)
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer les salles",
-        variant: "destructive",
-      })
+      toast.error("Impossible de supprimer les salles")
     }
   }
 
@@ -454,28 +417,14 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
     setIsAddDialogOpen(true)
   }
 
-  const fetchRooms = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("rooms")
-      .select("*")
-      .eq("establishment_id", establishmentId)
-      .order("created_at", { ascending: false })
+  const effectiveUserRole = userRole || user?.role || ""
+  const effectiveUserId = userId || user?.id || ""
 
-    if (data) {
-      setRooms(data)
-      setFilteredRooms(data) // Update filtered rooms as well
-    }
-  }
+  const isVieScolaire = effectiveUserRole === "vie-scolaire"
+  const isTeacher = effectiveUserRole === "professeur"
+  const isDelegate = effectiveUserRole === "delegue" || effectiveUserRole === "eco-delegue"
 
-  const userRole = user?.role
-  const isVieScolaire = userRole === "vie-scolaire"
-  const isTeacher = userRole === "professeur"
-  const isDelegue = userRole === "delegue" || userRole === "eco-delegue"
-  const isStudent = userRole === "student"
-
-  const canModifyRooms = isVieScolaire || isTeacher
-  const canViewCreationSection = isVieScolaire || isTeacher || isDelegue
+  const canModifyRooms = isVieScolaire || isTeacher || isDelegate
 
   const canViewRooms = true // Everyone can view rooms
 
@@ -492,7 +441,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.back()}
+              onClick={() => (onBack ? onBack() : router.back())} // Use onBack prop if provided
               className="hover:bg-white/50 dark:hover:bg-slate-800/50"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -502,7 +451,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
                 Gestion des salles
               </h1>
               <p className="text-muted-foreground mt-1">
-                {rooms.length} salle{rooms.length > 1 ? "s" : ""} • {filteredRooms.length} affichée
+                {localRooms.length} salle{localRooms.length > 1 ? "s" : ""} • {filteredRooms.length} affichée
                 {filteredRooms.length > 1 ? "s" : ""}
               </p>
             </div>
@@ -543,7 +492,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
           </div>
         </div>
 
-        {canViewCreationSection && (
+        {canModifyRooms && (
           <Card className="mb-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl text-emerald-900 dark:text-emerald-100">
@@ -562,7 +511,7 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
                   Créer un template
                 </Button>
                 <Button
-                  onClick={() => setIsCreateDialogOpen(true)}
+                  onClick={() => setIsTemplateDialogOpen(true)}
                   variant="outline"
                   className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                 >
@@ -1002,18 +951,25 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
           itemType="salle"
         />
         <TemplateSelectionDialog
-          open={isTemplateDialogOpen}
+          open={showTemplatesDialog}
           onOpenChange={setIsTemplateDialogOpen}
           onSelectTemplate={handleSelectTemplate}
-          userId={user?.id}
+          userId={effectiveUserId}
           establishmentId={establishmentId}
+          onTemplateSelected={() => {
+            setIsTemplateDialogOpen(false)
+            fetchRooms()
+          }}
         />
         <CreateTemplateDialog
-          open={isCreateTemplateDialogOpen}
+          open={showCreateTemplateDialog}
           onOpenChange={setIsCreateTemplateDialogOpen}
-          onSuccess={fetchRooms}
-          userId={user?.id}
+          userId={effectiveUserId}
           establishmentId={establishmentId}
+          onTemplateCreated={() => {
+            setIsCreateTemplateDialogOpen(false)
+            fetchRooms()
+          }}
         />
         <CreateSubRoomDialog
           open={isCreateSubRoomDialogOpen}
@@ -1024,116 +980,11 @@ export function RoomsManagement({ rooms: initialRooms, establishmentId }: RoomsM
           }}
           establishmentId={establishmentId}
           preselectedRoomId={preselectedRoomId}
-          userRole={user?.role}
+          userRole={effectiveUserRole} // Use effectiveUserRole
         />
       </div>
 
       <Toaster />
-    </div>
-  )
-}
-
-function RoomVisualization({ room }: { room: Room }) {
-  const { config, board_position } = room
-
-  if (!config || !config.columns || !Array.isArray(config.columns)) {
-    return (
-      <div className="flex items-center justify-center p-12 text-muted-foreground">
-        <p>Configuration de la salle invalide</p>
-      </div>
-    )
-  }
-
-  let seatNumber = 1
-  const boardMargin = 100 // pixels of space around the board
-  const isHorizontalBoard = board_position === "top" || board_position === "bottom"
-  const isVerticalBoard = board_position === "left" || board_position === "right"
-
-  return (
-    <div className="relative border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-16 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 min-h-[600px] overflow-auto">
-      {/* Board - Top */}
-      {board_position === "top" && (
-        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-b from-slate-700 via-slate-800 to-slate-900 text-white px-16 py-6 rounded-md font-semibold text-xl shadow-2xl border-2 border-slate-600">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-md" />
-          <span className="relative tracking-wider">TABLEAU</span>
-        </div>
-      )}
-
-      {/* Board - Bottom */}
-      {board_position === "bottom" && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-b from-slate-700 via-slate-800 to-slate-900 text-white px-16 py-6 rounded-md font-semibold text-xl shadow-2xl border-2 border-slate-600">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent rounded-md" />
-          <span className="relative tracking-wider">TABLEAU</span>
-        </div>
-      )}
-
-      {/* Board - Left */}
-      {board_position === "left" && (
-        <div
-          className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white px-6 py-16 rounded-md font-semibold text-xl shadow-2xl border-2 border-slate-600"
-          style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent rounded-md" />
-          <span className="relative tracking-wider">TABLEAU</span>
-        </div>
-      )}
-
-      {/* Board - Right */}
-      {board_position === "right" && (
-        <div
-          className="absolute right-8 top-1/2 transform -translate-y-1/2 bg-gradient-to-l from-slate-700 via-slate-800 to-slate-900 text-white px-6 py-16 rounded-md font-semibold text-xl shadow-2xl border-2 border-slate-600"
-          style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-l from-white/5 to-transparent rounded-md" />
-          <span className="relative tracking-wider">TABLEAU</span>
-        </div>
-      )}
-
-      <div
-        className="flex justify-center items-center gap-16 h-full"
-        style={{
-          marginTop: board_position === "top" ? `${boardMargin}px` : "0",
-          marginBottom: board_position === "bottom" ? `${boardMargin}px` : "0",
-          marginLeft: board_position === "left" ? `${boardMargin}px` : "0",
-          marginRight: board_position === "right" ? `${boardMargin}px` : "0",
-        }}
-      >
-        {config.columns.map((column, colIndex) => (
-          <div key={colIndex} className="flex flex-col gap-8">
-            {Array.from({ length: column.tables }).map((_, tableIndex) => (
-              <div
-                key={tableIndex}
-                className="relative bg-gradient-to-br from-[#B58255] via-[#B58255] to-[#A07245] dark:from-[#B58255]/50 dark:to-[#A07245]/50 rounded-2xl p-4 shadow-lg border-2 border-[#A07245] dark:border-[#A07245]"
-                style={{ minWidth: `${column.seatsPerTable * 80}px` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20 rounded-2xl pointer-events-none" />
-                <div
-                  className="absolute inset-0 opacity-20 rounded-2xl pointer-events-none"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)",
-                  }}
-                />
-
-                <div className="relative flex gap-4 justify-center">
-                  {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => {
-                    const currentSeatNumber = seatNumber++
-                    return (
-                      <div
-                        key={seatIndex}
-                        className="w-16 h-16 bg-gradient-to-br from-[#CCEDD6] via-[#CCEDD6] to-[#B8E0C7] hover:from-[#B8E0C7] hover:via-[#CCEDD6] hover:to-[#A5D4B9] text-gray-800 rounded-xl flex items-center justify-center text-lg font-bold shadow-md hover:shadow-xl transition-all duration-200 hover:scale-105 border border-[#A5D4B9] cursor-pointer"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-xl" />
-                        <span className="relative drop-shadow-sm">{currentSeatNumber}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
