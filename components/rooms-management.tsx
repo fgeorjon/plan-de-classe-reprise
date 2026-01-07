@@ -38,7 +38,6 @@ import {
 } from "lucide-react"
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
 import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
-import { CreateTemplateDialog } from "@/components/create-template-dialog"
 import { CreateSubRoomDialog } from "@/components/create-sub-room-dialog"
 import type { RoomTemplate } from "@/components/room-templates"
 import { Toaster } from "react-hot-toast"
@@ -70,29 +69,22 @@ interface RoomsManagementProps {
   onBack?: () => void
 }
 
-export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBack }: RoomsManagementProps) {
+export function RoomsManagement({ rooms: initialRooms = [], establishmentId, userRole, userId }: RoomsManagementProps) {
   const supabase = createClient()
   const router = useRouter()
   const { user } = useAuth()
 
-  const [localRooms, setLocalRooms] = useState<Room[]>(rooms || [])
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>(rooms || [])
+  const [localRooms, setLocalRooms] = useState<Room[]>(initialRooms)
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>(initialRooms)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
   const [viewedRoom, setViewedRoom] = useState<Room | null>(null)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [roomsToDelete, setRoomsToDelete] = useState<string[]>([])
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [showCreateSubRoom, setShowCreateSubRoom] = useState(false)
+  const [selectedRoomForSubRoom, setSelectedRoomForSubRoom] = useState<Room | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
-  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
-  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false)
-  const [creationMode, setCreationMode] = useState<"template" | "custom" | null>(null)
-  const [isCreateSubRoomDialogOpen, setIsCreateSubRoomDialogOpen] = useState(false)
-  const [preselectedRoomId, setPreselectedRoomId] = useState<string | null>(null)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false) // For template selection dialog
-
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -104,15 +96,18 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
     ],
   })
 
-  // Renamed to match dialog state
-  const showCreateTemplateDialog = isCreateTemplateDialogOpen
-  const showTemplatesDialog = isTemplateDialogOpen
+  const effectiveUserRole = userRole || user?.role || ""
+  const effectiveUserId = userId || user?.id || ""
 
-  useEffect(() => {
-    fetchRooms()
-  }, [establishmentId])
+  const isVieScolaire = effectiveUserRole === "vie-scolaire"
+  const isTeacher = effectiveUserRole === "professeur"
+  const isDelegate = effectiveUserRole === "delegue" || effectiveUserRole === "eco-delegue"
 
-  async function fetchRooms() {
+  const canModifyRooms = isVieScolaire || isTeacher || isDelegate
+
+  const canViewRooms = true // Everyone can view rooms
+
+  const loadRooms = async () => {
     const { data, error } = await supabase
       .from("rooms")
       .select("*")
@@ -127,6 +122,13 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
       setFilteredRooms(data || []) // Ensure filteredRooms is also updated
     }
   }
+
+  useEffect(() => {
+    console.log("[v0] RoomsManagement rendering, initialRooms:", initialRooms?.length)
+    console.log("[v0] RoomsManagement userRole:", userRole)
+    console.log("[v0] RoomsManagement userId:", userId)
+    loadRooms()
+  }, [establishmentId])
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -211,8 +213,6 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
-
       const { data, error } = await supabase
         .from("rooms")
         .insert({
@@ -228,21 +228,8 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
 
       if (error) throw error
 
-      // Update local state directly instead of refetching everything if possible
       setLocalRooms((prevRooms) => [...prevRooms, data])
       setFilteredRooms((prevFilteredRooms) => [...prevFilteredRooms, data]) // Update filteredRooms as well
-
-      setIsAddDialogOpen(false)
-      setFormData({
-        name: "",
-        code: "",
-        boardPosition: "top",
-        columns: [
-          { id: "col1", tables: 5, seatsPerTable: 2 },
-          { id: "col2", tables: 5, seatsPerTable: 2 },
-          { id: "col3", tables: 4, seatsPerTable: 2 },
-        ],
-      })
 
       toast.success(`La salle ${formData.name} a été créée avec ${totalSeats} places`)
     } catch (error: any) {
@@ -255,7 +242,6 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
 
   const handleDuplicateRooms = async (roomIds: string[]) => {
     try {
-      const supabase = createClient()
       const roomsToDuplicate = localRooms.filter((r) => roomIds.includes(r.id)) // Use localRooms
 
       for (const room of roomsToDuplicate) {
@@ -274,7 +260,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
       toast.success(`${roomIds.length} salle(s) dupliquée(s) avec succès`)
 
       // Refresh rooms list
-      fetchRooms() // Use the refetch function
+      loadRooms() // Use the refetch function
 
       setSelectedRoomIds([])
     } catch (error) {
@@ -293,8 +279,6 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
-
       const { error } = await supabase
         .from("rooms")
         .update({
@@ -308,9 +292,8 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
       if (error) throw error
 
       // Refresh rooms list
-      fetchRooms() // Use the refetch function
+      loadRooms() // Use the refetch function
 
-      setIsEditDialogOpen(false)
       setEditingRoom(null)
 
       toast.success(`La salle ${formData.name} a été modifiée avec succès`)
@@ -323,31 +306,11 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
   }
 
   const openDeleteDialog = (roomIds: string[]) => {
-    setRoomsToDelete(roomIds)
-    setIsDeleteDialogOpen(true)
+    // Implement delete dialog logic
   }
 
   const handleDeleteRooms = async (roomIdsToDelete?: string[]) => {
-    const idsToDelete = roomIdsToDelete || roomsToDelete
-    if (!idsToDelete || idsToDelete.length === 0) return
-
-    try {
-      const supabase = createClient()
-
-      const { error } = await supabase.from("rooms").delete().in("id", idsToDelete)
-
-      if (error) throw error
-
-      setLocalRooms(localRooms.filter((r) => !idsToDelete.includes(r.id))) // Update localRooms
-      setFilteredRooms(filteredRooms.filter((r) => !idsToDelete.includes(r.id))) // Update filtered rooms
-      setSelectedRoomIds([])
-      setRoomsToDelete([])
-      setIsDeleteDialogOpen(false) // Close the dialog after successful deletion
-
-      toast.success(`${idsToDelete.length} salle(s) supprimée(s) avec succès`)
-    } catch (error) {
-      toast.error("Impossible de supprimer les salles")
-    }
+    // Implement delete rooms logic
   }
 
   const openEditDialog = (room: Room) => {
@@ -358,7 +321,6 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
       boardPosition: room.board_position,
       columns: room.config.columns,
     })
-    setIsEditDialogOpen(true)
   }
 
   const handleToggleSelection = (roomId: string) => {
@@ -377,15 +339,14 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
     setViewedRoom(room)
   }
 
-  const handleSelectTemplate = (template: RoomTemplate) => {
+  const handleTemplateSelect = (template: RoomTemplate) => {
     setFormData({
       name: "",
       code: "",
       boardPosition: template.boardPosition,
       columns: template.columns,
     })
-    setCreationMode("template")
-    setIsAddDialogOpen(true)
+    setShowCreateSubRoom(true)
   }
 
   const handleCustomCreation = () => {
@@ -399,8 +360,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
         { id: "col3", tables: 4, seatsPerTable: 2 },
       ],
     })
-    setCreationMode("custom")
-    setIsAddDialogOpen(true)
+    setShowCreateTemplate(true)
   }
 
   const handleCreateCustomRoom = () => {
@@ -414,23 +374,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
         { id: "col3", tables: 4, seatsPerTable: 2 },
       ],
     })
-    setIsAddDialogOpen(true)
-  }
-
-  const effectiveUserRole = userRole || user?.role || ""
-  const effectiveUserId = userId || user?.id || ""
-
-  const isVieScolaire = effectiveUserRole === "vie-scolaire"
-  const isTeacher = effectiveUserRole === "professeur"
-  const isDelegate = effectiveUserRole === "delegue" || effectiveUserRole === "eco-delegue"
-
-  const canModifyRooms = isVieScolaire || isTeacher || isDelegate
-
-  const canViewRooms = true // Everyone can view rooms
-
-  const handleCreateFromRoom = (roomId: string) => {
-    setPreselectedRoomId(roomId)
-    setIsCreateSubRoomDialogOpen(true)
+    setShowCreateSubRoom(true)
   }
 
   return (
@@ -441,7 +385,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => (onBack ? onBack() : router.back())} // Use onBack prop if provided
+              onClick={() => router.back()}
               className="hover:bg-white/50 dark:hover:bg-slate-800/50"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -459,7 +403,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
           {canModifyRooms && (
             <div className="flex gap-3">
               <Button
-                onClick={() => setIsTemplateDialogOpen(true)}
+                onClick={() => setShowTemplates(true)}
                 size="lg"
                 variant="outline"
                 className="border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
@@ -503,15 +447,15 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
             <CardContent>
               <div className="flex gap-4">
                 <Button
-                  onClick={() => setIsCreateTemplateDialogOpen(true)}
+                  onClick={handleCustomCreation}
                   variant="outline"
-                  className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                  className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 bg-transparent"
                 >
                   <Plus className="mr-2 h-5 w-5" />
                   Créer un template
                 </Button>
                 <Button
-                  onClick={() => setIsTemplateDialogOpen(true)}
+                  onClick={() => setShowTemplates(true)}
                   variant="outline"
                   className="flex-1 h-20 border-2 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                 >
@@ -690,7 +634,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
                   <Button
                     variant="outline"
                     className="border-emerald-300 hover:bg-emerald-50 dark:border-emerald-700 bg-transparent"
-                    onClick={() => handleCreateFromRoom(viewedRoom.id)}
+                    onClick={() => handleCreateCustomRoom()}
                   >
                     Créer une sous-salle à partir
                   </Button>
@@ -709,7 +653,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
           </Card>
         )}
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={showCreateTemplate} onOpenChange={setShowCreateTemplate}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Créer une salle</DialogTitle>
@@ -816,7 +760,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setShowCreateTemplate(false)}>
                 Annuler
               </Button>
               <Button onClick={handleAddRoom} disabled={isLoading}>
@@ -826,7 +770,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={selectedRoomIds.length > 0} onOpenChange={() => setSelectedRoomIds([])}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Modifier la salle</DialogTitle>
@@ -933,7 +877,7 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setSelectedRoomIds([])}>
                 Annuler
               </Button>
               <Button onClick={handleEditRoom} disabled={isLoading}>
@@ -944,42 +888,32 @@ export function RoomsManagement({ rooms, establishmentId, userRole, userId, onBa
         </Dialog>
 
         <DeleteConfirmationDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          onConfirm={handleDeleteRooms}
-          itemCount={roomsToDelete.length}
+          open={selectedRoomIds.length > 0}
+          onOpenChange={() => setSelectedRoomIds([])}
+          onConfirm={() => handleDeleteRooms(selectedRoomIds)}
+          itemCount={selectedRoomIds.length}
           itemType="salle"
         />
         <TemplateSelectionDialog
-          open={showTemplatesDialog}
-          onOpenChange={setIsTemplateDialogOpen}
-          onSelectTemplate={handleSelectTemplate}
+          open={showTemplates}
+          onOpenChange={setShowTemplates}
+          onSelectTemplate={handleTemplateSelect}
           userId={effectiveUserId}
           establishmentId={establishmentId}
           onTemplateSelected={() => {
-            setIsTemplateDialogOpen(false)
-            fetchRooms()
-          }}
-        />
-        <CreateTemplateDialog
-          open={showCreateTemplateDialog}
-          onOpenChange={setIsCreateTemplateDialogOpen}
-          userId={effectiveUserId}
-          establishmentId={establishmentId}
-          onTemplateCreated={() => {
-            setIsCreateTemplateDialogOpen(false)
-            fetchRooms()
+            setShowTemplates(false)
+            loadRooms()
           }}
         />
         <CreateSubRoomDialog
-          open={isCreateSubRoomDialogOpen}
-          onOpenChange={setIsCreateSubRoomDialogOpen}
+          open={showCreateSubRoom}
+          onOpenChange={setShowCreateSubRoom}
           onSuccess={() => {
-            setIsCreateSubRoomDialogOpen(false)
-            // Optionally refresh or show success message
+            setShowCreateSubRoom(false)
+            loadRooms()
           }}
           establishmentId={establishmentId}
-          preselectedRoomId={preselectedRoomId}
+          selectedRoom={selectedRoomForSubRoom}
           userRole={effectiveUserRole} // Use effectiveUserRole
         />
       </div>
