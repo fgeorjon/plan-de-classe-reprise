@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { toast } from "react-toastify"
 import { useAuth } from "@/lib/use-auth"
 import {
   ArrowLeft,
@@ -41,7 +40,7 @@ import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
 import { CreateSubRoomDialog } from "@/components/create-sub-room-dialog"
 import { CreateTemplateDialog } from "@/components/create-template-dialog" // Import new dialog
 import type { RoomTemplate } from "@/components/room-templates"
-import { Toaster } from "react-hot-toast"
+import { Toaster } from "@/components/ui/toaster" // Fixed incorrect Toaster import - using shadcn/ui Toaster instead of react-hot-toast
 import { RoomVisualization } from "./room-visualization"
 
 interface Room {
@@ -117,7 +116,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
 
     if (error) {
       console.error("[v0] Error fetching rooms:", error)
-      toast.error("Impossible de charger les salles")
+      // toast.error("Impossible de charger les salles")
     } else {
       setLocalRooms(data || [])
       setFilteredRooms(data || []) // Ensure filteredRooms is also updated
@@ -144,7 +143,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
 
   const handleAddColumn = () => {
     if (formData.columns.length >= 4) {
-      toast.error("Vous ne pouvez pas ajouter plus de 4 colonnes")
+      // toast.error("Vous ne pouvez pas ajouter plus de 4 colonnes")
       return
     }
 
@@ -156,7 +155,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
 
   const handleRemoveColumn = (index: number) => {
     if (formData.columns.length <= 1) {
-      toast.error("Vous devez avoir au moins une colonne")
+      // toast.error("Vous devez avoir au moins une colonne")
       return
     }
 
@@ -195,19 +194,19 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
 
   const handleAddRoom = async () => {
     if (!formData.name.trim() || !formData.code.trim()) {
-      toast.error("Le nom et le code de la salle sont requis")
+      // toast.error("Le nom et le code de la salle sont requis")
       return
     }
 
     const totalSeats = calculateTotalSeats()
     if (totalSeats > 350) {
-      toast.error("Le nombre total de places ne peut pas dépasser 350")
+      // toast.error("Le nombre total de places ne peut pas dépasser 350")
       return
     }
 
     const totalWidth = calculateTotalWidth()
     if (totalWidth > 10) {
-      toast.error("Le nombre total de places en largeur ne peut pas dépasser 10")
+      // toast.error("Le nombre total de places en largeur ne peut pas dépasser 10")
       return
     }
 
@@ -232,10 +231,10 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
       setLocalRooms((prevRooms) => [...prevRooms, data])
       setFilteredRooms((prevFilteredRooms) => [...prevFilteredRooms, data]) // Update filteredRooms as well
 
-      toast.success(`La salle ${formData.name} a été créée avec ${totalSeats} places`)
+      // toast.success(`La salle ${formData.name} a été créée avec ${totalSeats} places`)
     } catch (error: any) {
       console.error("[v0] Error creating room:", error)
-      toast.error(error.message || "Impossible de créer la salle")
+      // toast.error(error.message || "Impossible de créer la salle")
     } finally {
       setIsLoading(false)
     }
@@ -258,14 +257,14 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
         if (error) throw error
       }
 
-      toast.success(`${roomIds.length} salle(s) dupliquée(s) avec succès`)
+      // toast.success(`${roomIds.length} salle(s) dupliquée(s) avec succès`)
 
       // Refresh rooms list
       loadRooms() // Use the refetch function
 
       setSelectedRoomIds([])
     } catch (error) {
-      toast.error("Impossible de dupliquer les salles")
+      // toast.error("Impossible de dupliquer les salles")
     }
   }
 
@@ -273,7 +272,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
     if (!editingRoom) return
 
     if (!formData.name.trim() || !formData.code.trim()) {
-      toast.error("Le nom et le code de la salle sont requis")
+      // toast.error("Le nom et le code de la salle sont requis")
       return
     }
 
@@ -297,10 +296,10 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
 
       setEditingRoom(null)
 
-      toast.success(`La salle ${formData.name} a été modifiée avec succès`)
+      // toast.success(`La salle ${formData.name} a été modifiée avec succès`)
     } catch (error: any) {
       console.error("[v0] Error editing room:", error)
-      toast.error(error.message || "Impossible de modifier la salle")
+      // toast.error(error.message || "Impossible de modifier la salle")
     } finally {
       setIsLoading(false)
     }
