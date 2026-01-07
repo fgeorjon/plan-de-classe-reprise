@@ -96,10 +96,8 @@ export function SandboxManagement({ establishmentId, userRole, userId, onBack }:
         const { data: teacherData } = await supabase.from("teachers").select("id").eq("profile_id", userId).single()
 
         if (teacherData) {
-          query = query.eq("teacher_id", teacherData.id).eq("is_submitted", true)
+          query = query.eq("teacher_id", teacherData.id)
         }
-      } else if (userRole === "vie_scolaire") {
-        query = query.eq("is_submitted", true)
       }
 
       const { data, error } = await query

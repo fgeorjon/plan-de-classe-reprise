@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -31,154 +29,89 @@ export function TemplateSelectionDialog({
   userId,
   establishmentId,
 }: TemplateSelectionDialogProps) {
-  const [hoveredTemplate, setHoveredTemplate] = useState<string | null>(null)
   const [customTemplates, setCustomTemplates] = useState<RoomTemplate[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hoveredTemplate, setHoveredTemplate] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open && establishmentId) {
-      loadTemplates()
-    }
-  }, [open, establishmentId])
-
-  const loadTemplates = async () => {
-    if (!establishmentId) return
-
-    setIsLoading(true)
-    try {
-      const templates = await loadCustomTemplates(establishmentId)
-      setCustomTemplates(templates)
-    } catch (error) {
-      console.error("[v0] Error loading custom templates:", error)
-    } finally {
+    if (open && userId && establishmentId) {
+      loadCustomTemplates(userId, establishmentId).then((templates) => {
+        setCustomTemplates(templates)
+        setIsLoading(false)
+      })
+    } else if (open) {
       setIsLoading(false)
     }
-  }
+  }, [open, userId, establishmentId])
 
-  const handleTogglePin = async (templateId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!establishmentId) {
-      toast({
-        title: "Erreur",
-        description: "Établissement non trouvé",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await toggleTemplatePin(templateId, establishmentId)
-      await loadTemplates()
-      toast({
-        title: "Succès",
-        description: "Template épinglé/désépinglé",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de modifier le template",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteTemplate = async (templateId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce template ?")) return
-
-    try {
-      await deleteCustomTemplate(templateId)
-      await loadTemplates()
-      toast({
-        title: "Succès",
-        description: "Template supprimé",
-      })
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer le template",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const pinnedTemplates = customTemplates.filter((t) => t.isPinned)
-  const unpinnedCustomTemplates = customTemplates.filter((t) => !t.isPinned)
-  const allTemplates = [...pinnedTemplates, ...unpinnedCustomTemplates, ...ROOM_TEMPLATES]
-
-  const renderTemplate = (template: RoomTemplate) => (
+  const TemplateCard = ({ template }: { template: RoomTemplate }) => (
     <Card
       key={template.id}
-      className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer border-2 hover:border-emerald-400"
+      className="relative group cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1"
       onMouseEnter={() => setHoveredTemplate(template.id)}
       onMouseLeave={() => setHoveredTemplate(null)}
     >
-      <CardContent className="p-4">
-        <div className="absolute top-2 right-2 flex gap-1 z-10">
-          {template.isPinned && (
-            <div className="bg-amber-500 p-1 rounded-full">
-              <Star className="h-3 w-3 text-white fill-white" />
-            </div>
-          )}
-          {template.isCustom && (
-            <div className="bg-purple-500 p-1 rounded-full">
-              <Sparkles className="h-3 w-3 text-white" />
-            </div>
-          )}
-        </div>
-
-        <div className="mb-3">
-          <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-1">{template.name}</h3>
-          <p className="text-sm text-muted-foreground">{template.description}</p>
-        </div>
-
-        <div className="flex items-center gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-1">
-            <Users className="h-4 w-4 text-emerald-600" />
-            <span className="font-medium">{template.totalSeats} places</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Columns3 className="h-4 w-4 text-emerald-600" />
-            <span className="font-medium">{template.columns.length} colonnes</span>
+      <CardContent className="p-5 relative">
+        <div className="flex items-start justify-between mb-3 relative z-20">
+          <div>
+            <h4 className="font-semibold text-base flex items-center gap-2">
+              {template.name}
+              {template.isPinned && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+            </h4>
+            {template.description && <p className="text-sm text-muted-foreground mt-1">{template.description}</p>}
           </div>
         </div>
 
-        {/* Mini visualization */}
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-lg p-3 mb-3 h-32 flex items-center justify-center">
-          <div className="flex gap-2 scale-75">
-            {template.columns.map((column, colIndex) => (
-              <div key={colIndex} className="flex flex-col gap-1">
-                {Array.from({ length: Math.min(column.tables, 4) }).map((_, tableIndex) => (
-                  <div key={tableIndex} className="flex gap-0.5">
-                    {Array.from({ length: column.seatsPerTable }).map((_, seatIndex) => (
-                      <div key={seatIndex} className="w-3 h-3 bg-emerald-500 rounded-sm" />
-                    ))}
-                  </div>
-                ))}
-                {column.tables > 4 && (
-                  <div className="text-[8px] text-center text-muted-foreground">+{column.tables - 4}</div>
-                )}
-              </div>
-            ))}
+        <div className="grid grid-cols-3 gap-3 text-sm relative z-20">
+          <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded">
+            <Columns3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-medium">
+              {template.columns.length} col{template.columns.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-900/20 p-2 rounded">
+            <LayoutGrid className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            <span className="font-medium">{template.columns.reduce((sum, col) => sum + col.tables, 0)} tables</span>
+          </div>
+          <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-900/20 p-2 rounded">
+            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <span className="font-medium">
+              {template.columns.reduce((sum, col) => sum + col.tables * col.seatsPerTable, 0)} places
+            </span>
           </div>
         </div>
 
-        {template.isCustom && (
-          <div className="flex gap-2 mb-2 relative z-20">
+        {template.isCustom && userId && establishmentId && (
+          <div className="absolute top-3 right-3 flex gap-2 z-20">
             <Button
               size="sm"
-              variant="outline"
-              className="flex-1 bg-white dark:bg-slate-800"
-              onClick={(e) => handleTogglePin(template.id, e)}
+              variant="ghost"
+              className="h-8 w-8 p-0 bg-white dark:bg-slate-800"
+              onClick={async (e) => {
+                e.stopPropagation()
+                await toggleTemplatePin(template.id, userId, establishmentId)
+                const updated = await loadCustomTemplates(userId, establishmentId)
+                setCustomTemplates(updated)
+              }}
             >
-              <Star className={`h-4 w-4 mr-1 ${template.isPinned ? "fill-amber-500 text-amber-500" : ""}`} />
-              {template.isPinned ? "Désépingler" : "Épingler"}
+              <Star className={`h-4 w-4 ${template.isPinned ? "text-amber-500 fill-amber-500" : "text-gray-400"}`} />
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              className="bg-white dark:bg-slate-800"
-              onClick={(e) => handleDeleteTemplate(template.id, e)}
+              variant="ghost"
+              className="h-8 w-8 p-0 bg-white dark:bg-slate-800"
+              onClick={async (e) => {
+                e.stopPropagation()
+                if (confirm("Supprimer ce template personnalisé ?")) {
+                  await deleteCustomTemplate(template.id, userId, establishmentId)
+                  const updated = await loadCustomTemplates(userId, establishmentId)
+                  setCustomTemplates(updated)
+                  toast({
+                    title: "Template supprimé",
+                    description: `Le template "${template.name}" a été supprimé.`,
+                  })
+                }
+              }}
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
@@ -207,6 +140,10 @@ export function TemplateSelectionDialog({
     </Card>
   )
 
+  const pinnedTemplates = [...ROOM_TEMPLATES, ...customTemplates].filter((t) => t.isPinned)
+  const predefinedTemplates = ROOM_TEMPLATES.filter((t) => !t.isPinned)
+  const unpinnedCustomTemplates = customTemplates.filter((t) => !t.isPinned)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -228,31 +165,35 @@ export function TemplateSelectionDialog({
                   Templates épinglés
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pinnedTemplates.map(renderTemplate)}
+                  {pinnedTemplates.map((template) => (
+                    <TemplateCard key={template.id} template={template} />
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Custom templates section */}
-            {unpinnedCustomTemplates.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-500" />
-                  Mes templates
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {unpinnedCustomTemplates.map(renderTemplate)}
-                </div>
-              </div>
-            )}
-
-            {/* Generic templates section */}
             <div>
-              <h3 className="font-semibold text-lg mb-3">Templates génériques</h3>
+              <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-emerald-600" />
+                Templates prédéfinis
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ROOM_TEMPLATES.map(renderTemplate)}
+                {predefinedTemplates.map((template) => (
+                  <TemplateCard key={template.id} template={template} />
+                ))}
               </div>
             </div>
+
+            {unpinnedCustomTemplates.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-lg mb-3">Templates personnalisés</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {unpinnedCustomTemplates.map((template) => (
+                    <TemplateCard key={template.id} template={template} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>

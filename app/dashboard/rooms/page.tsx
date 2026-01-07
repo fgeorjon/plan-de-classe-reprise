@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/use-auth"
 import { RoomsManagement } from "@/components/rooms-management"
 import { useRouter } from "next/navigation"
-import { ErrorBoundary } from "@/components/error-boundary"
 
 export default function RoomsPage() {
   const { user, isLoading: authLoading } = useAuth()
@@ -17,32 +16,12 @@ export default function RoomsPage() {
     async function loadRooms() {
       if (!user) return
 
-      console.log("[v0] RoomsPage - Loading rooms for user:", {
-        userId: user.id,
-        establishmentId: user.establishmentId,
-        role: user.role,
-      })
-
       const supabase = createClient()
-      const { data: roomsData, error } = await supabase
+      const { data: roomsData } = await supabase
         .from("rooms")
         .select("*")
         .eq("establishment_id", user.establishmentId)
         .order("name")
-
-      if (error) {
-        console.error("[v0] RoomsPage - Error loading rooms:", error)
-      } else {
-        console.log("[v0] RoomsPage - Rooms loaded:", {
-          count: roomsData?.length,
-          rooms: roomsData?.map((r) => ({
-            id: r.id,
-            name: r.name,
-            hasConfig: !!r.config,
-            columnsCount: r.config?.columns?.length,
-          })),
-        })
-      }
 
       setRooms(roomsData || [])
       setIsLoading(false)
@@ -67,16 +46,12 @@ export default function RoomsPage() {
   if (!user) return null
 
   return (
-    <ErrorBoundary componentName="Page des salles">
-      <div className="min-h-screen">
-        <RoomsManagement
-          rooms={rooms}
-          establishmentId={user.establishmentId}
-          userRole={user.role}
-          userId={user.id}
-          onBack={() => router.push("/dashboard")}
-        />
-      </div>
-    </ErrorBoundary>
+    <RoomsManagement
+      rooms={rooms}
+      establishmentId={user.establishmentId}
+      userRole={user.role}
+      userId={user.id}
+      onBack={() => router.push("/dashboard")}
+    />
   )
 }

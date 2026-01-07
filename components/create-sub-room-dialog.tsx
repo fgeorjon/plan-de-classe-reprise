@@ -15,17 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AlertTriangle, Info, X, Check } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
-import { notifyRoomInvitation } from "@/lib/notifications"
-import { Textarea } from "@/components/ui/textarea"
+import { AlertTriangle } from "lucide-react"
 
 interface Teacher {
   id: string
   first_name: string
   last_name: string
   subject: string
-  profile_id: string
 }
 
 interface Class {
@@ -48,7 +44,6 @@ interface CreateSubRoomDialogProps {
   establishmentId: string
   preselectedRoomId?: string | null
   userRole?: string
-  isPending?: boolean
 }
 
 export function CreateSubRoomDialog({
@@ -58,14 +53,12 @@ export function CreateSubRoomDialog({
   establishmentId,
   preselectedRoomId,
   userRole,
-  isPending,
 }: CreateSubRoomDialogProps) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentTeacherId, setCurrentTeacherId] = useState<string | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     roomId: "",
@@ -75,10 +68,6 @@ export function CreateSubRoomDialog({
     isCollaborative: false,
     isMultiClass: false,
   })
-
-  const [returnComments, setReturnComments] = useState("")
-  const [rejectionReason, setRejectionReason] = useState("")
-  const [action, setAction] = useState<"return" | "reject" | "approve">("return")
 
   const supabase = createClient()
 
@@ -93,8 +82,6 @@ export function CreateSubRoomDialog({
 
           if (cookieSession) {
             const sessionData = JSON.parse(decodeURIComponent(cookieSession))
-            setCurrentUserId(sessionData.id)
-
             const { data: teacher } = await supabase
               .from("teachers")
               .select("id")
@@ -147,18 +134,6 @@ export function CreateSubRoomDialog({
   }
 
   const handleToggleTeacher = (teacherId: string) => {
-    const isProfessor = userRole === "professeur"
-
-    if (isProfessor && !formData.isCollaborative && teacherId !== currentTeacherId) {
-      toast({
-        title: "Action non autorisée",
-        description:
-          "Vous ne pouvez créer une salle individuelle que pour vous-même. Cochez 'Salle collaborative' pour inviter d'autres professeurs.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setFormData((prev) => {
       let newTeachers: string[]
 
@@ -275,27 +250,7 @@ export function CreateSubRoomDialog({
           console.error("[v0] Error adding teachers:", teachersError)
           throw teachersError
         }
-
-        const otherTeachers = formData.selectedTeachers.filter((id) => id !== currentTeacherId)
-        for (const teacherId of otherTeachers) {
-          const teacher = teachers.find((t) => t.id === teacherId)
-          if (teacher && teacher.profile_id && currentUserId) {
-            await notifyRoomInvitation(subRoom.id, subRoom.name, teacher.profile_id, currentUserId, establishmentId)
-          }
-        }
-
-        if (otherTeachers.length > 0) {
-          toast({
-            title: "Invitations envoyées",
-            description: `${otherTeachers.length} professeur(s) ont été invité(s) à rejoindre la salle.`,
-          })
-        }
       }
-
-      toast({
-        title: "Sous-salle créée",
-        description: `La sous-salle "${subRoom.name}" a été créée avec succès.`,
-      })
 
       setFormData({
         roomId: "",
@@ -314,78 +269,7 @@ export function CreateSubRoomDialog({
       }, 500)
     } catch (error) {
       console.error("[v0] Error creating sub-room:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de créer la sous-salle. Veuillez réessayer.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleReturn = async () => {
-    if (!returnComments.trim()) return
-
-    setIsLoading(true)
-    setAction("return")
-    try {
-      // Logic to handle returning with comments
-      toast({
-        title: "Proposition renvoyée",
-        description: "La proposition a été renvoyée avec des commentaires.",
-      })
-    } catch (error) {
-      console.error("[v0] Error returning proposal:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de renvoyer la proposition. Veuillez réessayer.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleReject = async () => {
-    if (!rejectionReason.trim()) return
-
-    setIsLoading(true)
-    setAction("reject")
-    try {
-      // Logic to handle rejecting the proposal
-      toast({
-        title: "Proposition refusée",
-        description: "La proposition a été refusée définitivement.",
-      })
-    } catch (error) {
-      console.error("[v0] Error rejecting proposal:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de refuser la proposition. Veuillez réessayer.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleApprove = async () => {
-    setIsLoading(true)
-    setAction("approve")
-    try {
-      // Logic to handle approving the proposal
-      toast({
-        title: "Proposition validée",
-        description: "La proposition a été validée avec succès.",
-      })
-    } catch (error) {
-      console.error("[v0] Error approving proposal:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de valider la proposition. Veuillez réessayer.",
-        variant: "destructive",
-      })
+      alert("Erreur lors de la création de la sous-salle. Veuillez réessayer.")
     } finally {
       setIsLoading(false)
     }
@@ -393,14 +277,11 @@ export function CreateSubRoomDialog({
 
   const isDelegate = userRole === "delegue" || userRole === "eco-delegue"
   const isProfessor = userRole === "professeur"
-  const isTeacher = userRole === "professeur"
 
   const displayedTeachers =
-    isProfessor && !formData.isCollaborative
-      ? teachers.filter((t) => t.id === currentTeacherId)
-      : formData.isCollaborative && isProfessor && currentTeacherId
-        ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
-        : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
+    formData.isCollaborative && isProfessor && currentTeacherId
+      ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
+      : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -428,7 +309,7 @@ export function CreateSubRoomDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Nom personnalisé (optionnel)</Label>
+            <Label>Nom personnalisé</Label>
             <Input
               value={formData.customName}
               onChange={(e) => setFormData({ ...formData, customName: e.target.value })}
@@ -437,7 +318,7 @@ export function CreateSubRoomDialog({
           </div>
 
           {isProfessor && (
-            <div className="flex items-center gap-2 border rounded-md p-3 bg-blue-50 dark:bg-blue-950">
+            <div className="flex items-center gap-2 border rounded-md p-3">
               <Checkbox
                 id="collaborative"
                 checked={formData.isCollaborative}
@@ -449,22 +330,9 @@ export function CreateSubRoomDialog({
                   })
                 }}
               />
-              <Label htmlFor="collaborative" className="cursor-pointer text-sm flex-1">
-                <div className="font-medium">Salle collaborative (multi-professeurs)</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Cochez cette case pour inviter d'autres professeurs à cette salle
-                </div>
+              <Label htmlFor="collaborative" className="cursor-pointer text-sm">
+                Salle collaborative (multi-professeurs)
               </Label>
-            </div>
-          )}
-
-          {isProfessor && !formData.isCollaborative && (
-            <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950 rounded-md p-3 flex items-start gap-2">
-              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>Mode individuel :</strong> Vous créez cette salle uniquement pour vous. Pour inviter d'autres
-                professeurs, activez le mode collaboratif.
-              </p>
             </div>
           )}
 
@@ -497,10 +365,7 @@ export function CreateSubRoomDialog({
 
           {isProfessor && formData.isCollaborative && (
             <div className="space-y-2">
-              <Label>Inviter d'autres professeurs (optionnel)</Label>
-              <p className="text-sm text-muted-foreground">
-                Les professeurs invités recevront une notification et pourront accepter ou refuser l'invitation
-              </p>
+              <Label>Autres professeurs</Label>
               {displayedTeachers.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4">
                   Aucun autre professeur disponible
@@ -580,82 +445,6 @@ export function CreateSubRoomDialog({
               </div>
             )}
           </div>
-
-          {isPending && isTeacher && (
-            <div className="space-y-4 pt-4 border-t">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-4 rounded-lg mb-4 shadow-lg">
-                <h3 className="font-bold text-lg mb-2">Actions disponibles</h3>
-                <ul className="space-y-1 text-sm">
-                  <li>✓ Valider cette proposition</li>
-                  <li>✓ Renvoyer avec des commentaires pour modifications</li>
-                  <li>✓ Refuser définitivement la proposition</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="return-comments" className="text-base font-semibold">
-                  Renvoyer avec commentaires
-                </Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Le délégué pourra modifier la proposition en fonction de vos remarques
-                </p>
-                <Textarea
-                  id="return-comments"
-                  placeholder="Ex: Pouvez-vous placer les élèves turbulents plus près du tableau..."
-                  value={returnComments}
-                  onChange={(e) => setReturnComments(e.target.value)}
-                  rows={3}
-                  className="border-2 border-orange-300 focus:border-orange-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="rejection-reason" className="text-base font-semibold text-red-700">
-                  Refuser définitivement
-                </Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  La proposition sera définitivement refusée et le délégué en sera notifié
-                </p>
-                <Textarea
-                  id="rejection-reason"
-                  placeholder="Ex: Le plan ne convient pas pour ce type de cours..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                  className="border-2 border-red-300 focus:border-red-500"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={handleReturn}
-                  disabled={isLoading || !returnComments.trim()}
-                  className="flex-1 h-12 bg-orange-500 hover:bg-orange-600 text-white text-base font-semibold shadow-md"
-                  size="lg"
-                >
-                  {isLoading && action === "return" ? "Renvoi..." : "Renvoyer pour modifications"}
-                </Button>
-                <Button
-                  onClick={handleReject}
-                  disabled={isLoading || !rejectionReason.trim()}
-                  className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white text-base font-semibold shadow-md"
-                  size="lg"
-                >
-                  <X className="w-5 h-5 mr-2" />
-                  {isLoading && action === "reject" ? "Refus..." : "Refuser définitivement"}
-                </Button>
-                <Button
-                  onClick={handleApprove}
-                  disabled={isLoading}
-                  className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white text-base font-semibold shadow-md"
-                  size="lg"
-                >
-                  <Check className="w-5 h-5 mr-2" />
-                  {isLoading && action === "approve" ? "Validation..." : "Valider la proposition"}
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         <DialogFooter>

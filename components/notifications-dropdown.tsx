@@ -1,11 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { Bell, Check, X } from "lucide-react"
+import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -18,11 +16,8 @@ interface Notification {
   message: string
   sub_room_id?: string
   proposal_id?: string
-  room_invitation_id?: string
-  triggered_by?: string
   is_read: boolean
   created_at: string
-  metadata?: any
 }
 
 interface NotificationsDropdownProps {
@@ -34,7 +29,6 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
-  const [processingInvitation, setProcessingInvitation] = useState<string | null>(null)
   const router = useRouter()
 
   const fetchNotifications = async () => {
@@ -125,129 +119,7 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
     fetchNotifications()
   }
 
-  const handleAcceptInvitation = async (notification: Notification, e: React.MouseEvent) => {
-    e.stopPropagation()
-
-    if (!notification.sub_room_id) return
-
-    setProcessingInvitation(notification.id)
-    const supabase = createClient()
-
-    try {
-      // Get current user's teacher_id
-      const { data: teacher } = await supabase.from("teachers").select("id").eq("profile_id", userId).single()
-
-      if (!teacher) {
-        throw new Error("Profil enseignant non trouvé")
-      }
-
-      // Check if already accepted
-      const { data: existing } = await supabase
-        .from("sub_room_teachers")
-        .select("id")
-        .eq("sub_room_id", notification.sub_room_id)
-        .eq("teacher_id", teacher.id)
-        .single()
-
-      if (existing) {
-        toast({
-          title: "Déjà acceptée",
-          description: "Vous avez déjà accepté cette invitation",
-        })
-        await handleMarkAsRead(notification.id)
-        return
-      }
-
-      // Add teacher to sub_room_teachers
-      const { error: insertError } = await supabase.from("sub_room_teachers").insert({
-        sub_room_id: notification.sub_room_id,
-        teacher_id: teacher.id,
-      })
-
-      if (insertError) throw insertError
-
-      // Notify the inviter
-      if (notification.triggered_by) {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: notification.triggered_by,
-            establishment_id: establishmentId,
-            type: "invitation_accepted",
-            title: "Invitation acceptée",
-            message: "Un professeur a accepté votre invitation à la salle collaborative",
-            sub_room_id: notification.sub_room_id,
-          }),
-        })
-      }
-
-      toast({
-        title: "Invitation acceptée",
-        description: "Vous avez rejoint la salle collaborative",
-      })
-
-      await handleMarkAsRead(notification.id)
-      fetchNotifications()
-    } catch (error: any) {
-      console.error("[v0] Error accepting invitation:", error)
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible d'accepter l'invitation",
-        variant: "destructive",
-      })
-    } finally {
-      setProcessingInvitation(null)
-    }
-  }
-
-  const handleRejectInvitation = async (notification: Notification, e: React.MouseEvent) => {
-    e.stopPropagation()
-
-    setProcessingInvitation(notification.id)
-
-    try {
-      // Notify the inviter
-      if (notification.triggered_by) {
-        await fetch("/api/notifications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: notification.triggered_by,
-            establishment_id: establishmentId,
-            type: "invitation_rejected",
-            title: "Invitation refusée",
-            message: "Un professeur a refusé votre invitation à la salle collaborative",
-            sub_room_id: notification.sub_room_id,
-          }),
-        })
-      }
-
-      toast({
-        title: "Invitation refusée",
-        description: "Vous avez refusé l'invitation",
-      })
-
-      await handleMarkAsRead(notification.id)
-      fetchNotifications()
-    } catch (error: any) {
-      console.error("[v0] Error rejecting invitation:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de refuser l'invitation",
-        variant: "destructive",
-      })
-    } finally {
-      setProcessingInvitation(null)
-    }
-  }
-
   const handleNotificationClick = async (notification: Notification) => {
-    // Don't navigate for invitations - they have action buttons
-    if (notification.type === "room_invitation") {
-      return
-    }
-
     // Mark as read
     await handleMarkAsRead(notification.id)
 
@@ -295,22 +167,10 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
         return "✅"
       case "plan_rejected":
         return "❌"
-      case "plan_returned":
-        return "🔄"
       case "plan_created":
         return "🆕"
       case "plan_deleted":
         return "🗑️"
-      case "proposal_submitted":
-        return "📨"
-      case "room_invitation":
-        return "📬"
-      case "invitation_accepted":
-        return "✅"
-      case "invitation_rejected":
-        return "❌"
-      case "sub_room_created":
-        return "🏫"
       default:
         return "📬"
     }
@@ -351,7 +211,7 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <h3 className="font-semibold">Notifications</h3>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead} className="h-8 text-xs">
+            <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
               Tout marquer comme lu
             </Button>
           )}
@@ -360,50 +220,21 @@ export function NotificationsDropdown({ userId, establishmentId }: Notifications
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">Aucune notification</div>
         ) : (
           notifications.map((notification) => (
-            <div
+            <DropdownMenuItem
               key={notification.id}
-              className={`px-4 py-3 border-b last:border-b-0 ${!notification.is_read ? "bg-blue-50 dark:bg-blue-950" : ""}`}
+              onClick={() => handleNotificationClick(notification)}
+              className={`px-4 py-3 cursor-pointer ${!notification.is_read ? "bg-blue-50 dark:bg-blue-950" : ""}`}
             >
-              <div
-                onClick={() => handleNotificationClick(notification)}
-                className={`flex gap-3 w-full ${notification.type !== "room_invitation" ? "cursor-pointer" : ""}`}
-              >
-                <div className="text-2xl flex-shrink-0">{getNotificationIcon(notification.type)}</div>
-                <div className="flex-1 space-y-1 min-w-0">
+              <div className="flex gap-3 w-full">
+                <div className="text-2xl">{getNotificationIcon(notification.type)}</div>
+                <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium leading-none">{notification.title}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                  <p className="text-xs text-muted-foreground">{notification.message}</p>
                   <p className="text-xs text-muted-foreground">{formatTimeAgo(notification.created_at)}</p>
-
-                  {notification.type === "room_invitation" && !notification.is_read && (
-                    <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={(e) => handleAcceptInvitation(notification, e)}
-                        disabled={processingInvitation === notification.id}
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        Accepter
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 h-8 border-red-300 text-red-700 hover:bg-red-50 bg-transparent"
-                        onClick={(e) => handleRejectInvitation(notification, e)}
-                        disabled={processingInvitation === notification.id}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Refuser
-                      </Button>
-                    </div>
-                  )}
                 </div>
-                {!notification.is_read && notification.type !== "room_invitation" && (
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-1 flex-shrink-0"></div>
-                )}
+                {!notification.is_read && <div className="w-2 h-2 bg-blue-600 rounded-full mt-1"></div>}
               </div>
-            </div>
+            </DropdownMenuItem>
           ))
         )}
       </DropdownMenuContent>
