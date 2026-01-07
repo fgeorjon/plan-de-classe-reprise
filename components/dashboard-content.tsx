@@ -25,7 +25,6 @@ import type { Profile } from "@/lib/types"
 import { StudentsManagement } from "@/components/students-management"
 import { TeachersManagement } from "@/components/teachers-management"
 import { ClassesManagement } from "@/components/classes-management"
-import { RoomsManagement } from "@/components/rooms-management"
 import { SeatingPlanManagement } from "@/components/seating-plan-management"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 
@@ -37,9 +36,9 @@ interface DashboardContentProps {
 export function DashboardContent({ user, profile }: DashboardContentProps) {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [activeSection, setActiveSection] = useState<
-    "home" | "students" | "teachers" | "classes" | "rooms" | "seating-plan"
-  >("home")
+  const [activeSection, setActiveSection] = useState<"home" | "students" | "teachers" | "classes" | "seating-plan">(
+    "home",
+  )
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsData, setSettingsData] = useState({
     username: "",
@@ -277,17 +276,6 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     return <ClassesManagement establishmentId={profile.establishment_id} onBack={() => setActiveSection("home")} />
   }
 
-  if (activeSection === "rooms") {
-    return (
-      <RoomsManagement
-        establishmentId={profile.establishment_id}
-        userRole={profile.role}
-        userId={profile.id}
-        onBack={() => setActiveSection("home")}
-      />
-    )
-  }
-
   if (activeSection === "seating-plan") {
     return (
       <SeatingPlanManagement
@@ -402,12 +390,12 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => router.push("/dashboard/espace-classe")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
                     <SettingsIcon className="mr-3 h-6 w-6" />
-                    Salles
+                    Espaces Classe
                   </CardTitle>
                   <CardDescription className="text-amber-100">Créer et configurer les salles</CardDescription>
                 </CardHeader>
@@ -496,12 +484,12 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => router.push("/dashboard/espace-classe")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
                     <SettingsIcon className="mr-3 h-6 w-6" />
-                    Salles
+                    Espaces Classe
                   </CardTitle>
                   <CardDescription className="text-amber-100">Accéder aux plans de classe</CardDescription>
                 </CardHeader>
@@ -588,12 +576,12 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 border-2 hover:border-amber-300 dark:hover:border-amber-600"
-                onClick={() => router.push("/dashboard/rooms")}
+                onClick={() => router.push("/dashboard/espace-classe")}
               >
                 <CardHeader className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center text-xl">
                     <SettingsIcon className="mr-3 h-6 w-6" />
-                    Salles
+                    Espaces Classe
                   </CardTitle>
                   <CardDescription className="text-amber-100">Voir les plans de classe</CardDescription>
                 </CardHeader>
