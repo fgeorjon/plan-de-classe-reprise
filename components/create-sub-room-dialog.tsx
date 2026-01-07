@@ -42,8 +42,9 @@ interface CreateSubRoomDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
   establishmentId: string
-  preselectedRoomId?: string | null
+  selectedRoom?: Room | null // Added selectedRoom prop
   userRole?: string
+  userId?: string // Added userId prop
 }
 
 export function CreateSubRoomDialog({
@@ -51,9 +52,18 @@ export function CreateSubRoomDialog({
   onOpenChange,
   onSuccess,
   establishmentId,
-  preselectedRoomId,
+  selectedRoom,
   userRole,
+  userId,
 }: CreateSubRoomDialogProps) {
+  console.log("[v0] CreateSubRoomDialog rendering with props:", {
+    open,
+    establishmentId,
+    selectedRoom,
+    userRole,
+    userId,
+  })
+
   const [rooms, setRooms] = useState<Room[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [classes, setClasses] = useState<Class[]>([])
@@ -107,11 +117,11 @@ export function CreateSubRoomDialog({
   useEffect(() => {
     if (open) {
       fetchData()
-      if (preselectedRoomId) {
-        setFormData((prev) => ({ ...prev, roomId: preselectedRoomId }))
+      if (selectedRoom?.id) {
+        setFormData((prev) => ({ ...prev, roomId: selectedRoom.id }))
       }
     }
-  }, [open, establishmentId, preselectedRoomId])
+  }, [open, establishmentId, selectedRoom])
 
   const fetchData = async () => {
     try {
@@ -282,6 +292,8 @@ export function CreateSubRoomDialog({
     formData.isCollaborative && isProfessor && currentTeacherId
       ? teachers.filter((t) => t.id !== currentTeacherId).sort((a, b) => a.last_name.localeCompare(b.last_name))
       : teachers.sort((a, b) => a.last_name.localeCompare(b.last_name))
+
+  console.log("[v0] CreateSubRoomDialog about to return JSX")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

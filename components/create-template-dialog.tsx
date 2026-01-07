@@ -33,6 +33,8 @@ export function CreateTemplateDialog({
   userId,
   establishmentId,
 }: CreateTemplateDialogProps) {
+  console.log("[v0] CreateTemplateDialog rendering with props:", { open, userId, establishmentId })
+
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [boardPosition, setBoardPosition] = useState<"top" | "bottom" | "left" | "right">("top")
@@ -119,6 +121,8 @@ export function CreateTemplateDialog({
       setIsLoading(false)
     }
   }
+
+  console.log("[v0] CreateTemplateDialog about to return JSX")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -18,6 +18,7 @@ interface TemplateSelectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelectTemplate: (template: RoomTemplate) => void
+  onTemplateSelected?: () => void // Added onTemplateSelected prop
   userId?: string
   establishmentId?: string
 }
@@ -26,9 +27,12 @@ export function TemplateSelectionDialog({
   open,
   onOpenChange,
   onSelectTemplate,
+  onTemplateSelected,
   userId,
   establishmentId,
 }: TemplateSelectionDialogProps) {
+  console.log("[v0] TemplateSelectionDialog rendering with props:", { open, userId, establishmentId })
+
   const [customTemplates, setCustomTemplates] = useState<RoomTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hoveredTemplate, setHoveredTemplate] = useState<string | null>(null)
@@ -124,6 +128,9 @@ export function TemplateSelectionDialog({
           }`}
           onClick={() => {
             onSelectTemplate(template)
+            if (onTemplateSelected) {
+              onTemplateSelected()
+            }
             onOpenChange(false)
           }}
         >
@@ -143,6 +150,8 @@ export function TemplateSelectionDialog({
   const pinnedTemplates = [...ROOM_TEMPLATES, ...customTemplates].filter((t) => t.isPinned)
   const predefinedTemplates = ROOM_TEMPLATES.filter((t) => !t.isPinned)
   const unpinnedCustomTemplates = customTemplates.filter((t) => !t.isPinned)
+
+  console.log("[v0] TemplateSelectionDialog about to return JSX")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
