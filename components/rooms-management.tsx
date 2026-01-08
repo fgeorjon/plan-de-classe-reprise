@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/use-auth"
+import { CreateTemplateDialog } from "@/components/create-template-dialog"
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog"
+import { TemplateSelectionDialog } from "@/components/template-selection-dialog"
+import { CreateSubRoomDialog } from "@/components/create-sub-room-dialog"
 import {
   ArrowLeft,
   Plus,
@@ -658,7 +662,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
       </div>
 
       {showCreateTemplate && effectiveUserId && establishmentId && (
-        <div
+        <CreateTemplateDialog
           open={showCreateTemplate}
           onOpenChange={setShowCreateTemplate}
           onSuccess={() => {
@@ -667,9 +671,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
           }}
           userId={effectiveUserId}
           establishmentId={establishmentId}
-        >
-          {/* CreateTemplateDialog component implementation */}
-        </div>
+        />
       )}
 
       {editingRoom && (
@@ -762,7 +764,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
                     </div>
                   ))}
 
-                  <button variant="outline" onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
+                  <button onClick={handleAddColumn} disabled={formData.columns.length >= 4}>
                     <Plus className="mr-2 h-4 w-4" />
                     Ajouter une colonne
                   </button>
@@ -770,9 +772,7 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
               </div>
             </div>
             <div>
-              <button variant="outline" onClick={() => setEditingRoom(null)}>
-                Annuler
-              </button>
+              <button onClick={() => setEditingRoom(null)}>Annuler</button>
               <button onClick={handleEditRoom} disabled={isLoading}>
                 {isLoading ? "Modification..." : "Enregistrer"}
               </button>
@@ -782,19 +782,17 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
       )}
 
       {showDeleteDialog && (
-        <div
+        <DeleteConfirmationDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
           onConfirm={() => handleDeleteRooms(selectedRoomIds)}
           itemCount={selectedRoomIds.length}
           itemType="salle"
-        >
-          {/* DeleteConfirmationDialog component implementation */}
-        </div>
+        />
       )}
 
       {showTemplates && effectiveUserId && establishmentId && (
-        <div
+        <TemplateSelectionDialog
           open={showTemplates}
           onOpenChange={setShowTemplates}
           onSelectTemplate={handleTemplateSelect}
@@ -804,13 +802,11 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
             setShowTemplates(false)
             loadRooms()
           }}
-        >
-          {/* TemplateSelectionDialog component implementation */}
-        </div>
+        />
       )}
 
       {showCreateSubRoom && establishmentId && effectiveUserId && (
-        <div
+        <CreateSubRoomDialog
           open={showCreateSubRoom}
           onOpenChange={setShowCreateSubRoom}
           onSuccess={() => {
@@ -821,12 +817,8 @@ export function RoomsManagement({ rooms: initialRooms = [], establishmentId, use
           selectedRoom={selectedRoomForSubRoom}
           userRole={effectiveUserRole}
           userId={effectiveUserId}
-        >
-          {/* CreateSubRoomDialog component implementation */}
-        </div>
+        />
       )}
-
-      <div />
     </div>
   )
 }
