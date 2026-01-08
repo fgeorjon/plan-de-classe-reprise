@@ -72,7 +72,7 @@ La section Élèves permet de gérer l'ensemble des élèves de l'établissement
 
 ### **Table: students**
 
-```sql
+\`\`\`sql
 CREATE TABLE students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -111,7 +111,7 @@ CREATE TRIGGER set_students_updated_at
   BEFORE UPDATE ON students
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-```
+\`\`\`
 
 **Champs détaillés:**
 
@@ -140,9 +140,9 @@ CREATE TRIGGER set_students_updated_at
 **Relation:** Many-to-One (N élèves → 1 classe)
 
 **Données liées:**
-```typescript
+\`\`\`typescript
 students.class_id → classes.id
-```
+\`\`\`
 
 **Impact:**
 - Affectation d'élève nécessite une classe existante
@@ -153,10 +153,10 @@ students.class_id → classes.id
 **Relation:** Via `seat_assignments`
 
 **Données liées:**
-```typescript
+\`\`\`typescript
 seat_assignments.student_id → students.id
 seat_assignments.sub_room_id → sub_rooms.id
-```
+\`\`\`
 
 **Impact:**
 - Placement des élèves dans les plans de classe
@@ -167,9 +167,9 @@ seat_assignments.sub_room_id → sub_rooms.id
 **Relation:** Propositions créées par délégués
 
 **Données liées:**
-```typescript
+\`\`\`typescript
 sub_room_proposals.proposed_by → profiles.id (students.profile_id)
-```
+\`\`\`
 
 **Impact:**
 - Délégués peuvent créer des propositions
@@ -179,10 +179,10 @@ sub_room_proposals.proposed_by → profiles.id (students.profile_id)
 **Relation:** Création de comptes pour élèves
 
 **Données liées:**
-```typescript
+\`\`\`typescript
 students.profile_id → profiles.id
 profiles.role → 'delegue' | 'eco-delegue' | 'eleve'
-```
+\`\`\`
 
 **Impact:**
 - Génération automatique d'identifiants
@@ -195,7 +195,7 @@ profiles.role → 'delegue' | 'eco-delegue' | 'eleve'
 
 ### **États Locaux (React State)**
 
-```typescript
+\`\`\`typescript
 interface StudentsManagementState {
   // Données
   students: Student[]                // Liste des élèves chargés
@@ -239,11 +239,11 @@ interface StudentFormData {
   username: string                   // Identifiant généré
   password: string                   // Mot de passe généré
 }
-```
+\`\`\`
 
 ### **Contraintes de Validation**
 
-```typescript
+\`\`\`typescript
 const validation = {
   first_name: {
     required: true,
@@ -301,16 +301,16 @@ const validation = {
     }
   }
 }
-```
+\`\`\`
 
 ### **Format d'Import CSV**
 
-```csv
+\`\`\`csv
 prenom,nom,email,telephone,date_naissance,classe,delegue,eco_delegue
 Jean,Dupont,jean.dupont@example.com,0612345678,2010-05-15,6A,true,false
 Marie,Martin,marie.martin@example.com,0623456789,2010-08-22,6A,false,true
 Pierre,Durand,pierre.durand@example.com,0634567890,2011-01-10,6B,false,false
-```
+\`\`\`
 
 **Colonnes obligatoires:**
 - `prenom`, `nom`, `classe`
@@ -329,7 +329,7 @@ Pierre,Durand,pierre.durand@example.com,0634567890,2011-01-10,6B,false,false
 **Déclencheur:** Clic sur "Ajouter un élève"
 
 **Formulaire complet:**
-```typescript
+\`\`\`typescript
 {
   // Onglet 1: Informations personnelles
   first_name: string          // Prénom *
@@ -349,10 +349,10 @@ Pierre,Durand,pierre.durand@example.com,0634567890,2011-01-10,6B,false,false
   username: string            // Identifiant (auto-généré)
   password: string            // Mot de passe (auto-généré)
 }
-```
+\`\`\`
 
 **Processus:**
-```typescript
+\`\`\`typescript
 async function handleAddStudent() {
   // 1. Valider les données
   if (!formData.first_name || !formData.last_name || !formData.class_id) {
@@ -396,7 +396,7 @@ async function handleAddStudent() {
   // 6. Rafraîchir
   fetchStudents()
 }
-```
+\`\`\`
 
 #### **2. Modification d'un Élève**
 
@@ -412,7 +412,7 @@ async function handleAddStudent() {
 - Classe actuelle sélectionnée
 
 **Processus:**
-```typescript
+\`\`\`typescript
 async function handleEditStudent() {
   const { error } = await supabase
     .from('students')
@@ -434,7 +434,7 @@ async function handleEditStudent() {
   
   fetchStudents()
 }
-```
+\`\`\`
 
 #### **3. Suppression d'un Élève**
 
@@ -443,11 +443,11 @@ async function handleEditStudent() {
 **Permissions:** Vie Scolaire uniquement
 
 **Confirmation:**
-```typescript
+\`\`\`typescript
 if (!confirm(`Êtes-vous sûr de vouloir supprimer ${student.first_name} ${student.last_name} ?`)) {
   return
 }
-```
+\`\`\`
 
 **Impact de la suppression:**
 - ⚠️ Supprime l'élève de la base
@@ -456,7 +456,7 @@ if (!confirm(`Êtes-vous sûr de vouloir supprimer ${student.first_name} ${stude
 - ✅ Action irréversible
 
 **Processus:**
-```typescript
+\`\`\`typescript
 async function handleDeleteStudent(student: Student) {
   // 1. Supprimer les placements
   await supabase
@@ -477,7 +477,7 @@ async function handleDeleteStudent(student: Student) {
   // 4. Rafraîchir
   fetchStudents()
 }
-```
+\`\`\`
 
 ### **B. Gestion en Masse**
 
@@ -491,7 +491,7 @@ async function handleDeleteStudent(student: Student) {
 - `.xls` (Excel ancien format)
 
 **Colonnes reconnues:**
-```typescript
+\`\`\`typescript
 const columnMapping = {
   'prenom': 'first_name',
   'nom': 'last_name',
@@ -503,10 +503,10 @@ const columnMapping = {
   'delegue': 'is_delegate',
   'eco_delegue': 'is_eco_delegate'
 }
-```
+\`\`\`
 
 **Processus:**
-```typescript
+\`\`\`typescript
 async function handleImport(file: File) {
   // 1. Parser le fichier
   const data = await parseCSV(file)
@@ -555,7 +555,7 @@ async function handleImport(file: File) {
     })
   }
 }
-```
+\`\`\`
 
 #### **2. Export CSV/Excel**
 
@@ -566,7 +566,7 @@ async function handleImport(file: File) {
 - `.xlsx` (Excel moderne)
 
 **Colonnes exportées:**
-```typescript
+\`\`\`typescript
 const exportColumns = [
   'Prénom',
   'Nom',
@@ -578,10 +578,10 @@ const exportColumns = [
   'Éco-délégué',
   'Date d'inscription'
 ]
-```
+\`\`\`
 
 **Processus:**
-```typescript
+\`\`\`typescript
 function handleExport(format: 'csv' | 'xlsx') {
   // 1. Préparer les données
   const exportData = students.map(student => ({
@@ -609,7 +609,7 @@ function handleExport(format: 'csv' | 'xlsx') {
   await logAction('export', 'students', null, 
     `${students.length} élèves exportés (${format})`)
 }
-```
+\`\`\`
 
 #### **3. Actions Groupées**
 
@@ -625,7 +625,7 @@ function handleExport(format: 'csv' | 'xlsx') {
 4. **Générer comptes** (en masse)
 
 **Exemple: Changer de classe en masse**
-```typescript
+\`\`\`typescript
 async function handleBulkClassChange(studentIds: string[], newClassId: string) {
   const { error } = await supabase
     .from('students')
@@ -637,24 +637,24 @@ async function handleBulkClassChange(studentIds: string[], newClassId: string) {
   
   fetchStudents()
 }
-```
+\`\`\`
 
 ### **C. Recherche et Filtrage**
 
 #### **1. Recherche par Nom**
 
 **Input de recherche:**
-```typescript
+\`\`\`typescript
 <Input
   placeholder="Rechercher un élève..."
   value={searchQuery}
   onChange={(e) => setSearchQuery(e.target.value)}
   debounce={300}  // Attendre 300ms après frappe
 />
-```
+\`\`\`
 
 **Fonction de recherche:**
-```typescript
+\`\`\`typescript
 function filterStudents() {
   return students.filter(student => {
     // Recherche insensible à la casse
@@ -666,12 +666,12 @@ function filterStudents() {
            student.last_name.toLowerCase().includes(query)
   })
 }
-```
+\`\`\`
 
 #### **2. Filtre par Classe**
 
 **Select dropdown:**
-```typescript
+\`\`\`typescript
 <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
   <SelectItem value="all">Toutes les classes</SelectItem>
   {classes.map(classe => (
@@ -680,10 +680,10 @@ function filterStudents() {
     </SelectItem>
   ))}
 </Select>
-```
+\`\`\`
 
 **Fonction de filtrage:**
-```typescript
+\`\`\`typescript
 function filterByClass() {
   if (!selectedClassFilter || selectedClassFilter === 'all') {
     return students
@@ -693,12 +693,12 @@ function filterByClass() {
     student.class_id === selectedClassFilter
   )
 }
-```
+\`\`\`
 
 #### **3. Filtre par Rôle**
 
 **Tabs:**
-```typescript
+\`\`\`typescript
 <Tabs defaultValue="all" onValueChange={setSelectedRoleFilter}>
   <TabsList>
     <TabsTrigger value="all">Tous</TabsTrigger>
@@ -706,10 +706,10 @@ function filterByClass() {
     <TabsTrigger value="eco_delegate">Éco-délégués</TabsTrigger>
   </TabsList>
 </Tabs>
-```
+\`\`\`
 
 **Fonction de filtrage:**
-```typescript
+\`\`\`typescript
 function filterByRole() {
   switch (selectedRoleFilter) {
     case 'delegate':
@@ -720,11 +720,11 @@ function filterByRole() {
       return students
   }
 }
-```
+\`\`\`
 
 #### **4. Filtrage Combiné**
 
-```typescript
+\`\`\`typescript
 function getFilteredStudents() {
   let filtered = students
   
@@ -753,24 +753,24 @@ function getFilteredStudents() {
   
   return filtered
 }
-```
+\`\`\`
 
 ### **D. Gestion des Photos**
 
 #### **1. Upload de Photo**
 
 **Input file:**
-```typescript
+\`\`\`typescript
 <Input
   type="file"
   accept="image/jpeg,image/png,image/webp"
   onChange={handlePhotoSelect}
   maxSize={5 * 1024 * 1024}  // 5MB max
 />
-```
+\`\`\`
 
 **Processus d'upload:**
-```typescript
+\`\`\`typescript
 async function handlePhotoUpload(file: File) {
   // 1. Valider le fichier
   if (file.size > 5 * 1024 * 1024) {
@@ -802,12 +802,12 @@ async function handlePhotoUpload(file: File) {
   
   return publicUrl.publicUrl
 }
-```
+\`\`\`
 
 #### **2. Affichage des Photos**
 
 **Avatar avec fallback:**
-```typescript
+\`\`\`typescript
 <Avatar className="w-12 h-12">
   {student.photo_url ? (
     <AvatarImage src={student.photo_url || "/placeholder.svg"} alt={`${student.first_name} ${student.last_name}`} />
@@ -817,7 +817,7 @@ async function handlePhotoUpload(file: File) {
     </AvatarFallback>
   )}
 </Avatar>
-```
+\`\`\`
 
 ---
 
@@ -828,13 +828,13 @@ async function handlePhotoUpload(file: File) {
 #### **1. Email Déjà Existant**
 
 **Erreur Supabase:**
-```
+\`\`\`
 code: "23505"
 detail: "Key (email)=(xxx) already exists"
-```
+\`\`\`
 
 **Gestion:**
-```typescript
+\`\`\`typescript
 if (error?.code === '23505' && error.detail?.includes('email')) {
   toast({
     title: "Erreur",
@@ -842,18 +842,18 @@ if (error?.code === '23505' && error.detail?.includes('email')) {
     variant: "destructive"
   })
 }
-```
+\`\`\`
 
 #### **2. Classe Inexistante**
 
 **Erreur Supabase:**
-```
+\`\`\`
 code: "23503"
 detail: "Key (class_id)=(xxx) is not present in table classes"
-```
+\`\`\`
 
 **Gestion:**
-```typescript
+\`\`\`typescript
 if (error?.code === '23503' && error.detail?.includes('class_id')) {
   toast({
     title: "Erreur",
@@ -861,12 +861,12 @@ if (error?.code === '23503' && error.detail?.includes('class_id')) {
     variant: "destructive"
   })
 }
-```
+\`\`\`
 
 #### **3. Photo Trop Volumineuse**
 
 **Validation côté client:**
-```typescript
+\`\`\`typescript
 if (file.size > 5 * 1024 * 1024) {
   toast({
     title: "Erreur",
@@ -875,12 +875,12 @@ if (file.size > 5 * 1024 * 1024) {
   })
   return
 }
-```
+\`\`\`
 
 #### **4. Format CSV Invalide**
 
 **Validation lors de l'import:**
-```typescript
+\`\`\`typescript
 if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
   toast({
     title: "Erreur",
@@ -889,7 +889,7 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
   })
   return
 }
-```
+\`\`\`
 
 ---
 
@@ -897,7 +897,7 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
 
 ### **Workflow 1: Ajouter un Nouvel Élève**
 
-```
+\`\`\`
 1. Vie Scolaire clique sur "Ajouter un élève"
    └─> Dialog s'ouvre avec formulaire à onglets
    
@@ -931,11 +931,11 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
    ├─> Dialog se ferme
    ├─> Liste des élèves mise à jour
    └─> Nouvel élève visible immédiatement
-```
+\`\`\`
 
 ### **Workflow 2: Import en Masse depuis CSV**
 
-```
+\`\`\`
 1. Vie Scolaire clique sur "Importer"
    └─> Dialog d'import s'ouvre
    
@@ -967,11 +967,11 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
    ├─> "50 élèves importés avec succès"
    ├─> "3 erreurs détectées"
    └─> Option de télécharger rapport d'erreurs
-```
+\`\`\`
 
 ### **Workflow 3: Modifier un Élève**
 
-```
+\`\`\`
 1. Vie Scolaire clique sur menu (⋯) d'un élève
    └─> Menu dropdown s'ouvre
    
@@ -993,11 +993,11 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
    ├─> Dialog se ferme
    ├─> Élève mis à jour dans liste
    └─> Changements visibles dans plans de classe
-```
+\`\`\`
 
 ### **Workflow 4: Désigner un Délégué**
 
-```
+\`\`\`
 1. Vie Scolaire clique sur menu (⋯) d'un élève
    └─> Menu dropdown s'ouvre
    
@@ -1021,7 +1021,7 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
    ├─> Accès section "Ma classe"
    ├─> Accès "Plan de Classe"
    └─> Accès "Bac à sable" pour créer propositions
-```
+\`\`\`
 
 ---
 
@@ -1029,7 +1029,7 @@ if (!hasRequiredColumns(csvData, ['prenom', 'nom', 'classe'])) {
 
 ### **Affichées dans l'Interface**
 
-```typescript
+\`\`\`typescript
 // Header de la section
 const totalStudents = students.length
 const filteredCount = filteredStudents.length
@@ -1044,17 +1044,17 @@ const ecoCount = students.filter(s => s.is_eco_delegate).length
   <p>{delegatesCount} délégué{delegatesCount !== 1 ? 's' : ''}</p>
   <p>{ecoCount} éco-délégué{ecoCount !== 1 ? 's' : ''}</p>
 </div>
-```
+\`\`\`
 
 ### **Par Classe**
 
-```typescript
+\`\`\`typescript
 const studentsByClass = classes.map(classe => ({
   className: classe.name,
   count: students.filter(s => s.class_id === classe.id).length,
   delegates: students.filter(s => s.class_id === classe.id && s.is_delegate).length
 }))
-```
+\`\`\`
 
 ---
 
@@ -1062,7 +1062,7 @@ const studentsByClass = classes.map(classe => ({
 
 ### **Vérifier les Élèves en Base**
 
-```sql
+\`\`\`sql
 -- Compter les élèves par classe
 SELECT 
   c.name as classe,
@@ -1098,12 +1098,12 @@ FROM students s
 JOIN classes c ON s.class_id = c.id
 WHERE s.is_delegate OR s.is_eco_delegate
 ORDER BY c.name;
-```
+\`\`\`
 
 ---
 
 **FIN DE LA DOCUMENTATION - SECTION ÉLÈVES**
-```
+\`\`\`
 
 Je continue maintenant avec les autres sections. Voulez-vous que je crée également les documentations pour :
 - Section Professeurs

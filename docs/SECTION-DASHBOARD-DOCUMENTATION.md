@@ -77,15 +77,15 @@
 
 ### DashboardContent
 **Props**:
-```typescript
+\`\`\`typescript
 interface DashboardContentProps {
   user: User                 // Objet utilisateur Supabase
   profile: Profile           // Profil complet de l'utilisateur
 }
-```
+\`\`\`
 
 **État local**:
-```typescript
+\`\`\`typescript
 - isLoggingOut: boolean                    // État de déconnexion
 - activeSection: string                    // Section actuellement active
 - isSettingsOpen: boolean                  // Dialog paramètres ouvert/fermé
@@ -93,13 +93,13 @@ interface DashboardContentProps {
     username: string
     password: string
   }
-```
+\`\`\`
 
 ### Cartes de navigation
 
 Chaque carte représente une section accessible:
 
-```typescript
+\`\`\`typescript
 <Card onClick={() => router.push("/dashboard/{section}")}>
   <CardHeader className="bg-gradient-to-br from-{color}-500 to-{color}-600">
     <CardTitle>Titre de la section</CardTitle>
@@ -109,7 +109,7 @@ Chaque carte représente une section accessible:
     <p>Description détaillée</p>
   </CardContent>
 </Card>
-```
+\`\`\`
 
 **Effets visuels**:
 - Hover: shadow-xl + translate-y-1 (élévation)
@@ -137,7 +137,7 @@ Chaque carte représente une section accessible:
 
 Le Dashboard utilise un **état local** (`activeSection`) pour afficher les sections sans changer de route:
 
-```typescript
+\`\`\`typescript
 if (activeSection === "students") {
   return <StudentsManagement 
     establishmentId={profile.establishment_id}
@@ -146,7 +146,7 @@ if (activeSection === "students") {
     onBack={() => setActiveSection("home")}
   />
 }
-```
+\`\`\`
 
 **Avantages**:
 - Pas de rechargement de page
@@ -164,10 +164,10 @@ if (activeSection === "students") {
 ### Types d'authentification
 
 #### 1. Authentification Supabase (Production)
-```typescript
+\`\`\`typescript
 const supabase = createClient()
 const { error } = await supabase.auth.signOut()
-```
+\`\`\`
 
 **Flux**:
 1. Login via `/auth/login` avec username + password
@@ -176,30 +176,30 @@ const { error } = await supabase.auth.signOut()
 4. Redirection vers `/dashboard`
 
 #### 2. Session Admin (Mode debug)
-```typescript
+\`\`\`typescript
 if (isAdminSession()) {
   clearAdminSession()
   router.push("/auth/login")
 }
-```
+\`\`\`
 
 **Utilisation**: Mode développement pour tester rapidement avec différents rôles
 
 ### Vérification des permissions
 
-```typescript
+\`\`\`typescript
 // Vérifie le rôle avant de rendre une carte
 {profile.role === "vie-scolaire" && (
   <Card onClick={() => router.push("/dashboard/classes")}>
     ...
   </Card>
 )}
-```
+\`\`\`
 
 ### Protection des routes
 
 Les routes sont protégées au niveau **app/dashboard/layout.tsx**:
-```typescript
+\`\`\`typescript
 export default async function DashboardLayout({ children }) {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -213,7 +213,7 @@ export default async function DashboardLayout({ children }) {
   
   return <>{children}</>
 }
-```
+\`\`\`
 
 ---
 
@@ -235,17 +235,17 @@ export default async function DashboardLayout({ children }) {
    - Si rempli = hashage via RPC `hash_password`
 
 3. **Génération de mot de passe sécurisé**
-   ```typescript
+   \`\`\`typescript
    function generateStrongPassword(length = 8): string {
      // Mix de minuscules, majuscules, chiffres, symboles
      // Garantit au moins 1 caractère de chaque type
      // Mélange aléatoire final
    }
-   ```
+   \`\`\`
 
 ### Flux de mise à jour
 
-```typescript
+\`\`\`typescript
 async function handleUpdateCredentials() {
   // 1. Validation
   if (!settingsData.username.trim()) {
@@ -273,7 +273,7 @@ async function handleUpdateCredentials() {
   // 4. Toast de succès
   toast({ title: "Succès", description: "Identifiants mis à jour" })
 }
-```
+\`\`\`
 
 ---
 
@@ -291,7 +291,7 @@ async function handleUpdateCredentials() {
 - Icônes différentes selon le type
 
 **Types de notifications**:
-```typescript
+\`\`\`typescript
 type NotificationType = 
   | 'plan_modified'        // Plan modifié
   | 'plan_validated'       // Plan validé
@@ -302,13 +302,13 @@ type NotificationType =
   | 'proposal_submitted'   // Nouvelle proposition soumise
   | 'sub_room_created'     // Sous-salle créée
   | 'room_invitation'      // Invitation à une salle collaborative
-```
+\`\`\`
 
 ### Intégration Realtime (à venir)
 
 **Script SQL**: `scripts/034_enable_realtime_notifications.sql`
 
-```sql
+\`\`\`sql
 -- Activation de Realtime sur la table notifications
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 
@@ -316,10 +316,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 CREATE POLICY "Users can view their notifications"
   ON notifications FOR SELECT
   USING (auth.uid() = user_id);
-```
+\`\`\`
 
 **Abonnement côté client**:
-```typescript
+\`\`\`typescript
 useEffect(() => {
   const channel = supabase
     .channel('notifications')
@@ -340,7 +340,7 @@ useEffect(() => {
     supabase.removeChannel(channel)
   }
 }, [userId])
-```
+\`\`\`
 
 ---
 
@@ -387,7 +387,7 @@ useEffect(() => {
 ## Paramètres sauvegardés
 
 ### Session utilisateur
-```typescript
+\`\`\`typescript
 {
   user: User {
     id: string
@@ -406,10 +406,10 @@ useEffect(() => {
     is_active: boolean
   }
 }
-```
+\`\`\`
 
 ### État local (non persistant)
-```typescript
+\`\`\`typescript
 {
   activeSection: string           // Section active dans le dashboard
   isSettingsOpen: boolean         // Dialog paramètres
@@ -418,7 +418,7 @@ useEffect(() => {
     password: string
   }
 }
-```
+\`\`\`
 
 ### Cookies/LocalStorage
 - **Supabase session**: Cookie httpOnly pour la session auth
@@ -496,25 +496,25 @@ useEffect(() => {
 ## Commandes utiles
 
 ### Tester avec différents rôles
-```typescript
+\`\`\`typescript
 // Mode admin (dans auth/login/page.tsx)
 setAdminSession({
   userId: 'test-id',
   role: 'vie-scolaire' // ou 'professeur', 'delegue'
 })
-```
+\`\`\`
 
 ### Forcer une déconnexion
-```typescript
+\`\`\`typescript
 const supabase = createClient()
 await supabase.auth.signOut({ scope: 'global' })
-```
+\`\`\`
 
 ### Vérifier la session
-```typescript
+\`\`\`typescript
 const { data: { session } } = await supabase.auth.getSession()
 console.log(session)
-```
+\`\`\`
 
 ---
 

@@ -58,7 +58,7 @@ La section Professeurs permet de gérer l'ensemble des enseignants avec leurs ma
 ## 🗂️ STRUCTURE BASE DE DONNÉES
 
 ### **Table: teachers**
-```sql
+\`\`\`sql
 CREATE TABLE teachers (
   id UUID PRIMARY KEY,
   profile_id UUID REFERENCES profiles(id),
@@ -73,10 +73,10 @@ CREATE TABLE teachers (
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 );
-```
+\`\`\`
 
 ### **Table: teacher_classes**
-```sql
+\`\`\`sql
 CREATE TABLE teacher_classes (
   id UUID PRIMARY KEY,
   teacher_id UUID REFERENCES teachers(id),
@@ -85,7 +85,7 @@ CREATE TABLE teacher_classes (
   created_at TIMESTAMPTZ,
   UNIQUE(teacher_id, class_id, subject)
 );
-```
+\`\`\`
 
 ---
 

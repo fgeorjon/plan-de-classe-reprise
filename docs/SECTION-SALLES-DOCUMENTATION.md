@@ -68,7 +68,7 @@
 ### Table: `rooms`
 **Table principale stockant les configurations de salles**
 
-```sql
+\`\`\`sql
 CREATE TABLE rooms (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   establishment_id UUID NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
@@ -81,10 +81,10 @@ CREATE TABLE rooms (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(establishment_id, code)
 );
-```
+\`\`\`
 
 **Structure du champ `config` (JSONB)**:
-```json
+\`\`\`json
 {
   "columns": [
     {
@@ -94,7 +94,7 @@ CREATE TABLE rooms (
     }
   ]
 }
-```
+\`\`\`
 
 **Champs**:
 - `id` : Identifiant unique de la salle
@@ -110,7 +110,7 @@ CREATE TABLE rooms (
 ### Table: `sub_rooms`
 **Salles dérivées liées à des professeurs et classes spécifiques**
 
-```sql
+\`\`\`sql
 CREATE TABLE sub_rooms (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -122,7 +122,7 @@ CREATE TABLE sub_rooms (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 **Champs**:
 - `id` : Identifiant unique de la sous-salle
@@ -138,7 +138,7 @@ CREATE TABLE sub_rooms (
 ### Table: `sub_room_teachers`
 **Système de salles collaboratives multi-professeurs**
 
-```sql
+\`\`\`sql
 CREATE TABLE sub_room_teachers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   sub_room_id UUID NOT NULL REFERENCES sub_rooms(id) ON DELETE CASCADE,
@@ -146,7 +146,7 @@ CREATE TABLE sub_room_teachers (
   status TEXT CHECK (status IN ('pending', 'accepted', 'rejected')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 **Champs**:
 - `id` : Identifiant unique
@@ -164,7 +164,7 @@ CREATE TABLE sub_room_teachers (
 ### Table: `room_templates`
 **Templates personnalisés créés par les utilisateurs**
 
-```sql
+\`\`\`sql
 CREATE TABLE room_templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES profiles(id),
@@ -176,7 +176,7 @@ CREATE TABLE room_templates (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-```
+\`\`\`
 
 **Champs**:
 - `id` : Identifiant unique du template
@@ -203,7 +203,7 @@ CREATE TABLE room_templates (
 - Les classes sont affichées dans les détails de chaque sous-salle
 
 **Queries utilisées**:
-```typescript
+\`\`\`typescript
 // Récupération des classes pour un établissement
 const { data: classes } = await supabase
   .from('classes')
@@ -215,7 +215,7 @@ const { data: subRooms } = await supabase
   .from('sub_rooms')
   .select('*, classes(*)')
   .eq('room_id', roomId);
-```
+\`\`\`
 
 ### → Section Professeurs (`/dashboard/teachers`)
 **Intégration collaborative**
@@ -227,7 +227,7 @@ const { data: subRooms } = await supabase
 - Affichage du nom du professeur dans les sous-salles
 
 **Queries utilisées**:
-```typescript
+\`\`\`typescript
 // Récupération des professeurs
 const { data: teachers } = await supabase
   .from('teachers')
@@ -242,7 +242,7 @@ await supabase
     teacher_id: teacherId,
     status: 'pending'
   });
-```
+\`\`\`
 
 ### → Section Sandbox (`/dashboard/sandbox`)
 **Système de propositions**
@@ -267,13 +267,13 @@ await supabase
 - Calcul automatique du nombre de places disponibles
 
 **Intégration**:
-```typescript
+\`\`\`typescript
 // Une salle avec 3 colonnes de 5 tables × 2 places = 30 places totales
 // Utilisé pour limiter le nombre d'élèves assignables
 const totalSeats = room.config.columns.reduce((sum, col) => 
   sum + (col.tables * col.seatsPerTable), 0
 );
-```
+\`\`\`
 
 ### → Système de Notifications
 **Communication temps réel**
@@ -297,7 +297,7 @@ const totalSeats = room.config.columns.reduce((sum, col) =>
 ### États Locaux (React State)
 **Gérés dans `components/rooms-management.tsx`**
 
-```typescript
+\`\`\`typescript
 // États principaux
 const [localRooms, setLocalRooms] = useState<Room[]>([]);
 const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
@@ -323,12 +323,12 @@ const [formData, setFormData] = useState({
     seatsPerTable: number // Max 7
   }>
 });
-```
+\`\`\`
 
 ### Contraintes de Validation
 
 **Limites système**:
-```typescript
+\`\`\`typescript
 const VALIDATION_RULES = {
   MAX_TOTAL_SEATS: 350,           // Maximum de places par salle
   MAX_TOTAL_WIDTH: 10,            // Somme max des seatsPerTable
@@ -339,7 +339,7 @@ const VALIDATION_RULES = {
   MIN_TABLES_PER_COLUMN: 1,       // Minimum de tables par colonne
   MIN_SEATS_PER_TABLE: 1          // Minimum de sièges par table
 };
-```
+\`\`\`
 
 **Validation en temps réel**:
 - Calcul automatique du total de places
@@ -348,7 +348,7 @@ const VALIDATION_RULES = {
 - Format du code : alphanumerique, 2-10 caractères
 
 **Messages d'erreur**:
-```typescript
+\`\`\`typescript
 if (totalSeats > 350) {
   toast.error("Le nombre total de places ne peut pas dépasser 350");
 }
@@ -358,7 +358,7 @@ if (totalWidth > 10) {
 if (columns.length > 5) {
   toast.error("Maximum 5 colonnes autorisées");
 }
-```
+\`\`\`
 
 ### Paramètres Supabase (Base de données)
 
@@ -370,7 +370,7 @@ if (columns.length > 5) {
 - Code de salle unique avec contrainte `UNIQUE(establishment_id, code)`
 
 **Politiques RLS (Row Level Security)**:
-```sql
+\`\`\`sql
 -- Lecture : Tout le monde dans l'établissement
 CREATE POLICY "Rooms are viewable by establishment members"
 ON rooms FOR SELECT
@@ -399,7 +399,7 @@ USING (
     WHERE id = auth.uid() AND role = 'vie-scolaire'
   )
 );
-```
+\`\`\`
 
 ---
 
@@ -410,7 +410,7 @@ USING (
 #### 1. Via Templates
 
 **Templates Prédéfinis** (6 configurations):
-```typescript
+\`\`\`typescript
 const PREDEFINED_TEMPLATES = [
   {
     id: 'small',
@@ -481,7 +481,7 @@ const PREDEFINED_TEMPLATES = [
     }
   }
 ];
-```
+\`\`\`
 
 **Templates Personnalisés**:
 - Créés par les utilisateurs via `CreateTemplateDialog`
@@ -500,7 +500,7 @@ const PREDEFINED_TEMPLATES = [
 #### 2. Personnalisée
 
 **Formulaire de création**:
-```typescript
+\`\`\`typescript
 interface CreateRoomForm {
   name: string;              // Ex: "Salle A1"
   code: string;              // Ex: "A101" (unique)
@@ -513,7 +513,7 @@ interface Column {
   tables: number;            // 1-20
   seatsPerTable: number;     // 1-7
 }
-```
+\`\`\`
 
 **Étapes de création**:
 1. Remplir le nom et le code
@@ -541,7 +541,7 @@ interface Column {
 #### Visualisation
 
 **Affichage de la configuration**:
-```
+\`\`\`
 Tableau (position configurée)
 ╔════════════════════════════╗
 ║                            ║
@@ -554,7 +554,7 @@ Colonne 1    Colonne 2    Colonne 3
   (×5)        (×5)        (×5)
 
 Configuration : 3 colonnes, 30 places totales
-```
+\`\`\`
 
 **Informations affichées**:
 - Nom de la salle
@@ -585,7 +585,7 @@ Configuration : 3 colonnes, 30 places totales
 #### Duplication
 
 **Processus**:
-```typescript
+\`\`\`typescript
 const duplicateRoom = async (roomId: string) => {
   const original = rooms.find(r => r.id === roomId);
   const timestamp = Date.now();
@@ -601,7 +601,7 @@ const duplicateRoom = async (roomId: string) => {
   
   await supabase.from('rooms').insert(duplicate);
 };
-```
+\`\`\`
 
 **Caractéristiques**:
 - Copie exacte de la configuration
@@ -619,21 +619,21 @@ const duplicateRoom = async (roomId: string) => {
 - Suppression des templates liés (si applicable)
 
 **Code de confirmation**:
-```typescript
+\`\`\`typescript
 const confirmationCode = Math.random()
   .toString(36)
   .substring(2, 8)
   .toUpperCase();
-```
+\`\`\`
 
 **Cascade DELETE**:
-```sql
+\`\`\`sql
 -- Suppression automatique des sous-salles
 ON DELETE CASCADE
 
 -- Suppression automatique des affectations d'élèves
 -- Suppression automatique des propositions sandbox
-```
+\`\`\`
 
 #### Sélection Multiple
 
@@ -646,35 +646,35 @@ ON DELETE CASCADE
   - Supprimer toutes (avec confirmation)
 
 **Interface**:
-```
+\`\`\`
 [✓] Sélectionner tout (5 salles sélectionnées)
 
 [Actions groupées]
   - Dupliquer la sélection
   - Supprimer la sélection
-```
+\`\`\`
 
 ### C. Sous-Salles
 
 #### Création Simple (1 professeur + classes)
 
 **Formulaire**:
-```typescript
+\`\`\`typescript
 interface CreateSubRoomForm {
   roomId: string;               // Salle parente (auto-sélectionnée)
   teacherId: string;            // Professeur principal
   classIds: string[];           // 1 ou plusieurs classes
   customName?: string;          // Nom personnalisé (optionnel)
 }
-```
+\`\`\`
 
 **Nom auto-généré**:
-```typescript
+\`\`\`typescript
 const generateSubRoomName = (room: Room, teacher: Teacher) => {
   return `${room.name} - ${teacher.last_name}`;
 };
 // Ex: "Salle A1 - Dupont"
-```
+\`\`\`
 
 **Processus**:
 1. Sélectionner la salle parente
@@ -688,7 +688,7 @@ const generateSubRoomName = (room: Room, teacher: Teacher) => {
 **Workflow complet**:
 
 1. **Création initiale**:
-```typescript
+\`\`\`typescript
 // Professeur A crée une sous-salle
 const subRoom = await supabase.from('sub_rooms').insert({
   room_id: roomId,
@@ -696,10 +696,10 @@ const subRoom = await supabase.from('sub_rooms').insert({
   teacher_id: professorAId,
   class_ids: [class1Id, class2Id]
 });
-```
+\`\`\`
 
 2. **Ajout de professeurs collaborateurs**:
-```typescript
+\`\`\`typescript
 // Ajouter le professeur B
 await supabase.from('sub_room_teachers').insert({
   sub_room_id: subRoom.id,
@@ -715,10 +715,10 @@ await supabase.from('notifications').insert({
   message: `${professorA.name} vous invite à rejoindre "${subRoom.name}"`,
   data: { sub_room_id: subRoom.id }
 });
-```
+\`\`\`
 
 3. **Acceptation/Rejet**:
-```typescript
+\`\`\`typescript
 // Le professeur B accepte
 await supabase
   .from('sub_room_teachers')
@@ -731,7 +731,7 @@ await supabase.from('notifications').insert({
   type: 'sub_room_accepted',
   message: `${professorB.name} a accepté votre invitation`
 });
-```
+\`\`\`
 
 **Interface de gestion**:
 - Liste des professeurs collaborateurs
@@ -747,7 +747,7 @@ await supabase.from('notifications').insert({
 - Permet de sélectionner plusieurs classes simultanément
 
 **Interface**:
-```
+\`\`\`
 Sélection des classes:
 [✓] 6ème A
 [✓] 6ème B
@@ -755,7 +755,7 @@ Sélection des classes:
 [✓] 6ème D
 
 → 3 classes sélectionnées
-```
+\`\`\`
 
 **Cas d'usage**:
 - Cours en groupes mélangés (ex: options, langues)
@@ -778,7 +778,7 @@ Sélection des classes:
 #### Templates Personnalisés
 
 **Création**:
-```typescript
+\`\`\`typescript
 interface CreateTemplateForm {
   name: string;              // Ex: "Ma config préférée"
   description?: string;      // Description optionnelle
@@ -787,7 +787,7 @@ interface CreateTemplateForm {
   };
   is_pinned?: boolean;       // Épingler directement
 }
-```
+\`\`\`
 
 **Fonctionnalités**:
 - Créer à partir d'une configuration existante
@@ -797,12 +797,12 @@ interface CreateTemplateForm {
 - Supprimer (uniquement le créateur)
 
 **Épinglage** (favoris):
-```typescript
+\`\`\`typescript
 await supabase
   .from('room_templates')
   .update({ is_pinned: true })
   .eq('id', templateId);
-```
+\`\`\`
 
 **Affichage**:
 - Templates épinglés affichés en premier
@@ -824,7 +824,7 @@ await supabase
 - Code de la salle
 
 **Implémentation**:
-```typescript
+\`\`\`typescript
 const filteredRooms = localRooms.filter(room => {
   const query = searchQuery.toLowerCase();
   return (
@@ -832,7 +832,7 @@ const filteredRooms = localRooms.filter(room => {
     room.code.toLowerCase().includes(query)
   );
 });
-```
+\`\`\`
 
 **Caractéristiques**:
 - Recherche en temps réel (debounce 300ms)
@@ -841,11 +841,11 @@ const filteredRooms = localRooms.filter(room => {
 - Affichage du nombre de résultats
 
 **Interface**:
-```
+\`\`\`
 [🔍] Rechercher une salle...
 
 Résultats : 3 salles sur 15
-```
+\`\`\`
 
 #### Filtres Avancés (à implémenter)
 
@@ -863,13 +863,13 @@ Résultats : 3 salles sur 15
 ### Erreur React #130 (ACTUELLE)
 
 **Erreur complète**:
-```
+\`\`\`
 Error: Minified React error #130
 Element type is invalid: expected a string (for built-in components) 
 or a class/function (for composite components) but got: undefined. 
 You likely forgot to export your component from the file it's defined in, 
 or you might have mixed up default and named exports.
-```
+\`\`\`
 
 **Symptômes observés**:
 - ✅ La page charge correctement les données Supabase
@@ -928,10 +928,10 @@ Il y a un composant non-Dialog dans le JSX principal qui retourne `undefined` po
 **Statut** : Non reproduit dans le code actuel
 
 **Vérification** :
-```typescript
+\`\`\`typescript
 // components/dashboard-content.tsx ligne 276
 <h2>Classes</h2> // Correct
-```
+\`\`\`
 
 #### 2. Crash lors de la navigation Dashboard → Salles
 **Symptôme** : Erreur lors du changement de section
@@ -939,80 +939,80 @@ Il y a un composant non-Dialog dans le JSX principal qui retourne `undefined` po
 **Cause probable** : Props non initialisées dans `app/dashboard/rooms/page.tsx`
 
 **Solution proposée** :
-```typescript
+\`\`\`typescript
 // Assurer que toutes les props sont définies
 <RoomsManagement
   rooms={rooms || []}
   userRole={profile.role}
   userId={profile.id}
 />
-```
+\`\`\`
 
 #### 3. Toasts en surcharge
 **Symptôme** : Trop de notifications affichées simultanément
 
 **Solution implémentée** :
-```typescript
+\`\`\`typescript
 // hooks/use-toast.ts
 const TOAST_LIMIT = 3; // Au lieu de 1
-```
+\`\`\`
 
 #### 4. Délégués ne voient pas la section création
 **Symptôme** : La section "Créer une nouvelle salle" n'apparaît pas pour les délégués
 
 **Solution** : Rendre visible pour tous avec adaptation selon le rôle
-```typescript
+\`\`\`typescript
 const canCreateRooms = 
   isVieScolaire || 
   isTeacher || 
   isDelegue; // ✅ Inclure les délégués
-```
+\`\`\`
 
 ### Messages d'Erreur Courants
 
 #### Supabase Errors
 
 **"violates foreign key constraint"**:
-```
+\`\`\`
 Cause : Tentative d'insérer un teacher_id qui n'existe pas
 Solution : Vérifier que le professeur existe avant création
-```
+\`\`\`
 
 **"duplicate key value violates unique constraint"**:
-```
+\`\`\`
 Cause : Code de salle déjà utilisé
 Solution : Validation côté client + message clair
-```
+\`\`\`
 
 **"row-level security policy violation"**:
-```
+\`\`\`
 Cause : L'utilisateur n'a pas les permissions RLS
 Solution : Vérifier le rôle et les politiques RLS
-```
+\`\`\`
 
 #### Validation Errors
 
 **"Le nombre total de places ne peut pas dépasser 350"**:
-```typescript
+\`\`\`typescript
 const totalSeats = columns.reduce(
   (sum, col) => sum + (col.tables * col.seatsPerTable), 
   0
 );
 if (totalSeats > 350) throw new Error();
-```
+\`\`\`
 
 **"La largeur totale ne peut pas dépasser 10 places"**:
-```typescript
+\`\`\`typescript
 const totalWidth = Math.max(
   ...columns.map(col => col.seatsPerTable)
 );
 if (totalWidth > 10) throw new Error();
-```
+\`\`\`
 
 **"Maximum 5 colonnes autorisées"**:
-```typescript
+\`\`\`typescript
 if (columns.length > 5) throw new Error();
-```
+\`\`\`
 
 ---
 
@@ -1046,7 +1046,7 @@ if (columns.length > 5) throw new Error();
 ### Limites Système
 
 **Contraintes techniques**:
-```typescript
+\`\`\`typescript
 const SYSTEM_LIMITS = {
   // Limites de salle
   MAX_SEATS_PER_ROOM: 350,
@@ -1073,7 +1073,7 @@ const SYSTEM_LIMITS = {
   MAX_TEACHERS_PER_SUB_ROOM: null,   // Illimité
   MAX_CLASSES_PER_SUB_ROOM: null     // Illimité
 };
-```
+\`\`\`
 
 **Raisons des limites**:
 - **350 places** : Contrainte d'affichage et de performance
@@ -1102,7 +1102,7 @@ const SYSTEM_LIMITS = {
 **Format** : 6 caractères alphanumériques en MAJUSCULES
 
 **Génération**:
-```typescript
+\`\`\`typescript
 const generateConfirmationCode = () => {
   return Math.random()
     .toString(36)
@@ -1110,7 +1110,7 @@ const generateConfirmationCode = () => {
     .toUpperCase();
 };
 // Exemples : "A7X9K2", "B3M7P1", "Q5W8R4"
-```
+\`\`\`
 
 **Usage**:
 - Suppression de salle(s)
@@ -1202,7 +1202,7 @@ const generateConfirmationCode = () => {
 
 ### Debugging Supabase
 
-```sql
+\`\`\`sql
 -- Voir toutes les salles d'un établissement
 SELECT * FROM rooms WHERE establishment_id = 'xxx';
 
@@ -1214,11 +1214,11 @@ SELECT * FROM sub_room_teachers WHERE status = 'pending';
 
 -- Voir les templates d'un utilisateur
 SELECT * FROM room_templates WHERE user_id = 'xxx';
-```
+\`\`\`
 
 ### Queries Courantes
 
-```typescript
+\`\`\`typescript
 // Récupérer toutes les salles avec créateur
 const { data: rooms } = await supabase
   .from('rooms')
@@ -1245,7 +1245,7 @@ const { data, error } = await supabase
   })
   .select()
   .single();
-```
+\`\`\`
 
 ---
 

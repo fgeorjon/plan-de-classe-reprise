@@ -53,7 +53,7 @@ Le Bac à Sable est un espace collaboratif où les délégués peuvent créer et
 
 ### **Flux de Travail**
 
-```
+\`\`\`
 Délégué            Bac à Sable           Professeur         Production
    │                    │                     │                  │
    ├─> Créer           │                     │                  │
@@ -75,7 +75,7 @@ Délégué            Bac à Sable           Professeur         Production
    │<──── Notif ────────┤                     │                  │
    │                    │                     │                  │
    └─> Rééditer        │                     │                  │
-```
+\`\`\`
 
 ---
 
@@ -126,7 +126,7 @@ Délégué            Bac à Sable           Professeur         Production
 
 ### **Table: sub_room_proposals**
 
-```sql
+\`\`\`sql
 CREATE TABLE sub_room_proposals (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
@@ -158,7 +158,7 @@ CREATE TABLE sub_room_proposals (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
-```
+\`\`\`
 
 **Champs clés:**
 
@@ -176,7 +176,7 @@ CREATE TABLE sub_room_proposals (
 
 ### **Cycle de Vie**
 
-```mermaid
+\`\`\`mermaid
 graph LR
     A[draft] -->|Soumettre| B[pending]
     B -->|Valider| C[approved]
@@ -184,7 +184,7 @@ graph LR
     B -->|Renvoyer| A
     D -->|Rééditer| A
     C -->|Créé| E[sub_room réelle]
-```
+\`\`\`
 
 ### **1. Draft (Brouillon)**
 
@@ -201,12 +201,12 @@ graph LR
 - Supprimer
 
 **Badge UI:**
-```tsx
+\`\`\`tsx
 <Badge variant="outline" className="bg-gray-50 text-gray-700">
   <FileText className="w-3 h-3 mr-1" />
   Brouillon
 </Badge>
-```
+\`\`\`
 
 ### **2. Pending (En Attente)**
 
@@ -224,12 +224,12 @@ graph LR
 - Renvoyer
 
 **Badge UI:**
-```tsx
+\`\`\`tsx
 <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
   <Clock className="w-3 h-3 mr-1" />
   En attente
 </Badge>
-```
+\`\`\`
 
 ### **3. Approved (Validée)**
 
@@ -241,12 +241,12 @@ graph LR
 - Archivée
 
 **Badge UI:**
-```tsx
+\`\`\`tsx
 <Badge variant="outline" className="bg-green-50 text-green-700">
   <CheckCircle2 className="w-3 h-3 mr-1" />
   Validée
 </Badge>
-```
+\`\`\`
 
 ### **4. Rejected (Refusée)**
 
@@ -257,12 +257,12 @@ graph LR
 - Notification envoyée
 
 **Badge UI:**
-```tsx
+\`\`\`tsx
 <Badge variant="outline" className="bg-red-50 text-red-700">
   <XCircle className="w-3 h-3 mr-1" />
   Refusée
 </Badge>
-```
+\`\`\`
 
 ---
 
@@ -273,7 +273,7 @@ graph LR
 **Dialog: CreateProposalDialog**
 
 **Formulaire:**
-```typescript
+\`\`\`typescript
 {
   name: string                // Nom de la proposition
   room_id: string             // Salle sélectionnée
@@ -281,10 +281,10 @@ graph LR
   teacher_id: string          // Professeur concerné
   comments?: string           // Message pour le prof
 }
-```
+\`\`\`
 
 **Processus:**
-```typescript
+\`\`\`typescript
 async function createProposal(data) {
   const { data: proposal, error } = await supabase
     .from('sub_room_proposals')
@@ -301,14 +301,14 @@ async function createProposal(data) {
   // Ouvrir éditeur pour placer les élèves
   openEditor(proposal)
 }
-```
+\`\`\`
 
 ### **B. Édition de Proposition**
 
 **Composant: SandboxEditor**
 
 **Interface:**
-```
+\`\`\`
 ┌─────────────────────────────────────────────┐
 │  Proposition: "Plan pour Mme Dupont"       │
 │  Status: [Brouillon]                        │
@@ -332,12 +332,12 @@ async function createProposal(data) {
 ├─────────────────────────────────────────────┤
 │  [Annuler]  [Sauvegarder]  [Soumettre]    │
 └─────────────────────────────────────────────┘
-```
+\`\`\`
 
 **Actions:**
 
 1. **Sauvegarder (brouillon)**
-   ```typescript
+   \`\`\`typescript
    await supabase
      .from('sub_room_proposals')
      .update({
@@ -346,10 +346,10 @@ async function createProposal(data) {
        updated_at: new Date().toISOString()
      })
      .eq('id', proposalId)
-   ```
+   \`\`\`
 
 2. **Soumettre**
-   ```typescript
+   \`\`\`typescript
    await supabase
      .from('sub_room_proposals')
      .update({
@@ -366,14 +366,14 @@ async function createProposal(data) {
      type: 'proposal_submitted',
      message: `${delegateName} a soumis une proposition de plan`
    })
-   ```
+   \`\`\`
 
 ### **C. Révision par Professeur**
 
 **Dialog: ReviewProposalDialog**
 
 **Interface:**
-```
+\`\`\`
 ┌─────────────────────────────────────────────┐
 │  Proposition de Jean Dupont (Délégué)      │
 │  Pour: 6A - Salle B                         │
@@ -402,12 +402,12 @@ async function createProposal(data) {
 │                                             │
 │  [Annuler]              [Valider l'action] │
 └─────────────────────────────────────────────┘
-```
+\`\`\`
 
 **Actions professeur:**
 
 #### **1. Valider Directement**
-```typescript
+\`\`\`typescript
 async function approveProposal(proposalId) {
   // 1. Créer la sous-salle
   const { data: subRoom } = await supabase
@@ -450,19 +450,19 @@ async function approveProposal(proposalId) {
     message: `Votre proposition a été validée !`
   })
 }
-```
+\`\`\`
 
 #### **2. Modifier puis Valider**
-```typescript
+\`\`\`typescript
 // Ouvrir l'éditeur avec les données de la proposition
 openEditor(proposal, { mode: 'review' })
 
 // Le prof peut modifier les placements
 // Puis valider → suit le même process que "Valider directement"
-```
+\`\`\`
 
 #### **3. Renvoyer avec Commentaires**
-```typescript
+\`\`\`typescript
 async function returnProposal(proposalId, comments) {
   await supabase
     .from('sub_room_proposals')
@@ -479,10 +479,10 @@ async function returnProposal(proposalId, comments) {
     message: `Votre proposition a été renvoyée avec des commentaires`
   })
 }
-```
+\`\`\`
 
 #### **4. Refuser Définitivement**
-```typescript
+\`\`\`typescript
 async function rejectProposal(proposalId, reason) {
   await supabase
     .from('sub_room_proposals')
@@ -500,14 +500,14 @@ async function rejectProposal(proposalId, reason) {
     message: `Votre proposition a été refusée`
   })
 }
-```
+\`\`\`
 
 ### **D. Sélection Multiple et Actions Groupées**
 
 **Pour les délégués : Supprimer brouillons**
 
 **Interface:**
-```
+\`\`\`
 ┌─────────────────────────────────────────────┐
 │  [☑ Sélectionner tous les brouillons]      │
 │  (3 brouillons sélectionnés)                │
@@ -518,10 +518,10 @@ async function rejectProposal(proposalId, reason) {
 │  ☑ Nouveau plan 6B      [Brouillon]       │
 │  □ Plan validé          [Validée]          │
 └─────────────────────────────────────────────┘
-```
+\`\`\`
 
 **Logique:**
-```typescript
+\`\`\`typescript
 // Checkbox "Select All" ne sélectionne QUE les brouillons
 const drafts = proposals.filter(p => !p.is_submitted)
 
@@ -545,7 +545,7 @@ async function deleteDrafts(ids: string[]) {
     description: `${ids.length} brouillon(s) supprimé(s)`
   })
 }
-```
+\`\`\`
 
 ---
 
@@ -579,7 +579,7 @@ async function deleteDrafts(ids: string[]) {
 ## 📊 STATISTIQUES
 
 ### **Par Délégué**
-```typescript
+\`\`\`typescript
 const stats = {
   totalProposals: proposals.length,
   drafts: proposals.filter(p => p.status === 'draft').length,
@@ -588,17 +588,17 @@ const stats = {
   rejected: proposals.filter(p => p.status === 'rejected').length,
   approvalRate: approved / (approved + rejected) * 100
 }
-```
+\`\`\`
 
 ### **Par Professeur**
-```typescript
+\`\`\`typescript
 const stats = {
   receivedProposals: proposals.length,
   pendingReview: proposals.filter(p => p.status === 'pending').length,
   avgReviewTime: calculateAvgTime(),
   mostActiveDelegate: getMostActive()
 }
-```
+\`\`\`
 
 ---
 

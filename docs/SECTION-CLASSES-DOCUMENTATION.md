@@ -53,7 +53,7 @@
 ## Structure base de données
 
 ### Table: classes
-```sql
+\`\`\`sql
 CREATE TABLE public.classes (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   account_id uuid REFERENCES accounts(id),
@@ -68,7 +68,7 @@ CREATE TABLE public.classes (
   version integer DEFAULT 1,
   is_deleted boolean DEFAULT false
 );
-```
+\`\`\`
 
 **Champs clés**:
 - `name`: Nom de la classe (ex: "6A", "5B", "3C")
@@ -78,7 +78,7 @@ CREATE TABLE public.classes (
 - `is_deleted`: Soft delete (classe archivée mais pas supprimée physiquement)
 
 ### Table: levels
-```sql
+\`\`\`sql
 CREATE TABLE public.levels (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   establishment_id uuid NOT NULL REFERENCES establishments(id),
@@ -88,7 +88,7 @@ CREATE TABLE public.levels (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
-```
+\`\`\`
 
 **Champs clés**:
 - `name`: Nom du niveau
@@ -97,7 +97,7 @@ CREATE TABLE public.levels (
 
 ### Relations
 
-```mermaid
+\`\`\`mermaid
 graph LR
     A[establishments] --> B[levels]
     A --> C[classes]
@@ -105,7 +105,7 @@ graph LR
     C --> D[students]
     C --> E[teacher_classes]
     C --> F[sub_rooms]
-```
+\`\`\`
 
 **Relations importantes**:
 - Une classe appartient à UN établissement
@@ -121,15 +121,15 @@ graph LR
 ### ClassesManagement
 
 **Props**:
-```typescript
+\`\`\`typescript
 interface ClassesManagementProps {
   establishmentId: string    // ID de l'établissement
   onBack?: () => void        // Callback retour au dashboard
 }
-```
+\`\`\`
 
 **État local**:
-```typescript
+\`\`\`typescript
 {
   classes: Class[]                    // Liste des classes
   levels: Level[]                     // Liste des niveaux
@@ -143,10 +143,10 @@ interface ClassesManagementProps {
     level: string                     // Niveau sélectionné
   }
 }
-```
+\`\`\`
 
 ### Interface Class
-```typescript
+\`\`\`typescript
 interface Class {
   id: string
   name: string                        // "6A", "5B"
@@ -154,15 +154,15 @@ interface Class {
   establishment_id: string
   created_at: string
 }
-```
+\`\`\`
 
 ### Interface Level
-```typescript
+\`\`\`typescript
 interface Level {
   id: string
   name: string                        // "6ème", "Seconde"
 }
-```
+\`\`\`
 
 ---
 
@@ -191,14 +191,14 @@ interface Level {
    - Primaire: CP, CE1, CE2, CM1, CM2
 
 **Dialog Props**:
-```typescript
+\`\`\`typescript
 interface LevelsManagementDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   establishmentId: string
   onLevelsUpdated: () => void          // Callback après modification
 }
-```
+\`\`\`
 
 ---
 
@@ -210,14 +210,14 @@ interface LevelsManagementDialogProps {
 - Par niveau (ascendant): 6ème → 5ème → 4ème → 3ème
 - Par nom (ascendant): 6A → 6B → 6C
 
-```typescript
+\`\`\`typescript
 const { data } = await supabase
   .from("classes")
   .select("*")
   .eq("establishment_id", establishmentId)
   .order("level", { ascending: true })
   .order("name", { ascending: true })
-```
+\`\`\`
 
 **Tableau**:
 | Nom | Niveau | Actions |
@@ -234,12 +234,12 @@ const { data } = await supabase
 ### 2. Création de classe
 
 **Formulaire**:
-```typescript
+\`\`\`typescript
 {
   name: string          // Requis, ex: "6A"
   level: string         // Requis, sélection dans dropdown
 }
-```
+\`\`\`
 
 **Validation**:
 - ✅ Nom non vide
@@ -247,7 +247,7 @@ const { data } = await supabase
 - ✅ Nom unique par établissement (pas de contrainte DB, géré côté client)
 
 **Insertion**:
-```typescript
+\`\`\`typescript
 await supabase
   .from("classes")
   .insert([{
@@ -255,12 +255,12 @@ await supabase
     level: formData.level,
     establishment_id: establishmentId
   }])
-```
+\`\`\`
 
 **Logging**:
-```typescript
+\`\`\`typescript
 await logAction("create", "class", classId, className)
-```
+\`\`\`
 
 ### 3. Modification de classe
 
@@ -269,7 +269,7 @@ await logAction("create", "class", classId, className)
 - Niveau
 
 **Mise à jour**:
-```typescript
+\`\`\`typescript
 await supabase
   .from("classes")
   .update({
@@ -277,27 +277,27 @@ await supabase
     level: formData.level
   })
   .eq("id", selectedClass.id)
-```
+\`\`\`
 
 **Logging**:
-```typescript
+\`\`\`typescript
 await logAction("update", "class", classId, newName)
-```
+\`\`\`
 
 ### 4. Suppression de classe
 
 **Confirmation**:
-```javascript
+\`\`\`javascript
 confirm(`Êtes-vous sûr de vouloir supprimer la classe "${className}" ?`)
-```
+\`\`\`
 
 **Suppression physique** (pas de soft delete dans ce composant):
-```typescript
+\`\`\`typescript
 await supabase
   .from("classes")
   .delete()
   .eq("id", classId)
-```
+\`\`\`
 
 **Impact cascade**:
 - ⚠️ Supprime les élèves de la classe (via FK cascade)
@@ -305,9 +305,9 @@ await supabase
 - ⚠️ Supprime les sous-salles liées
 
 **Logging**:
-```typescript
+\`\`\`typescript
 await logAction("delete", "class", classId, className)
-```
+\`\`\`
 
 ### 5. Gestion des niveaux
 
@@ -320,9 +320,9 @@ await logAction("delete", "class", classId, className)
 - Réorganisation de l'ordre d'affichage
 
 **Callback après modification**:
-```typescript
+\`\`\`typescript
 onLevelsUpdated={() => fetchLevels()}
-```
+\`\`\`
 
 ---
 
@@ -345,12 +345,12 @@ onLevelsUpdated={() => fetchLevels()}
 
 **Lien**: Table `teacher_classes` (join table)
 
-```sql
+\`\`\`sql
 CREATE TABLE teacher_classes (
   teacher_id uuid REFERENCES teachers(id),
   class_id uuid REFERENCES classes(id)
 )
-```
+\`\`\`
 
 **Flux**:
 1. Une classe est créée
@@ -365,13 +365,13 @@ CREATE TABLE teacher_classes (
 
 **Lien**: Via sous-salles (`sub_rooms`)
 
-```sql
+\`\`\`sql
 CREATE TABLE sub_rooms (
   room_id uuid REFERENCES rooms(id),
   class_id uuid REFERENCES classes(id),
   class_ids uuid[]        -- Multi-classes
 )
-```
+\`\`\`
 
 **Flux**:
 1. Une salle est créée dans RoomsManagement
@@ -410,7 +410,7 @@ CREATE TABLE sub_rooms (
 ## Paramètres sauvegardés
 
 ### Base de données
-```typescript
+\`\`\`typescript
 // Table classes
 {
   id: uuid
@@ -431,10 +431,10 @@ CREATE TABLE sub_rooms (
   is_custom: boolean
   establishment_id: uuid
 }
-```
+\`\`\`
 
 ### État local (non persistant)
-```typescript
+\`\`\`typescript
 {
   classes: Class[]                    // Classes chargées en mémoire
   levels: Level[]                     // Niveaux chargés
@@ -444,10 +444,10 @@ CREATE TABLE sub_rooms (
     level: string
   }
 }
-```
+\`\`\`
 
 ### Logs d'actions
-```typescript
+\`\`\`typescript
 // Table action_logs
 {
   user_id: uuid
@@ -461,7 +461,7 @@ CREATE TABLE sub_rooms (
   }
   created_at: timestamptz
 }
-```
+\`\`\`
 
 ---
 
@@ -488,12 +488,12 @@ Classes triées par:
 2. Nom (ordre alphabétique)
 
 **Exemple**:
-```
+\`\`\`
 6A, 6B, 6C
 5A, 5B
 4A, 4B, 4C, 4D
 3A, 3B, 3C
-```
+\`\`\`
 
 ### 2. Badge de niveau
 
@@ -548,17 +548,17 @@ Bouton dédié pour ouvrir le dialog de gestion:
 ### Workflow 1: Début d'année scolaire
 
 1. **Créer les niveaux**
-   ```
+   \`\`\`
    6ème, 5ème, 4ème, 3ème
-   ```
+   \`\`\`
 
 2. **Créer les classes**
-   ```
+   \`\`\`
    6A, 6B, 6C
    5A, 5B
    4A, 4B, 4C
    3A, 3B
-   ```
+   \`\`\`
 
 3. **Assigner les élèves** (section Élèves)
    - Importer ou créer manuellement
@@ -592,43 +592,43 @@ Bouton dédié pour ouvrir le dialog de gestion:
 ## Commandes utiles
 
 ### Lister les classes d'un établissement
-```sql
+\`\`\`sql
 SELECT * FROM classes
 WHERE establishment_id = 'xxx'
 ORDER BY level, name;
-```
+\`\`\`
 
 ### Compter les élèves par classe
-```sql
+\`\`\`sql
 SELECT c.name, COUNT(s.id) as nb_students
 FROM classes c
 LEFT JOIN students s ON s.class_id = c.id
 WHERE c.establishment_id = 'xxx'
 GROUP BY c.id, c.name
 ORDER BY c.level, c.name;
-```
+\`\`\`
 
 ### Trouver les classes sans niveau
-```sql
+\`\`\`sql
 SELECT * FROM classes
 WHERE level IS NULL OR level = ''
 ORDER BY name;
-```
+\`\`\`
 
 ### Supprimer toutes les classes vides (sans élèves)
-```sql
+\`\`\`sql
 DELETE FROM classes
 WHERE id NOT IN (
   SELECT DISTINCT class_id FROM students
 )
 AND establishment_id = 'xxx';
-```
+\`\`\`
 
 ---
 
 **Dernière mise à jour**: 7 janvier 2026
 **Version**: 1.0.0
 **Mainteneur**: Équipe v0
-```
+\`\`\`
 
 Je vais continuer avec les autres sections dans le prochain message...

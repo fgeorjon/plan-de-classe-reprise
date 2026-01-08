@@ -69,7 +69,7 @@ La section Plans de Classe est le cœur de l'application : elle permet de créer
 ## 🗂️ STRUCTURE BASE DE DONNÉES
 
 ### **Table: sub_rooms**
-```sql
+\`\`\`sql
 CREATE TABLE sub_rooms (
   id UUID PRIMARY KEY,
   room_id UUID REFERENCES rooms(id) NOT NULL,
@@ -82,10 +82,10 @@ CREATE TABLE sub_rooms (
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 );
-```
+\`\`\`
 
 ### **Table: seat_assignments**
-```sql
+\`\`\`sql
 CREATE TABLE seat_assignments (
   id UUID PRIMARY KEY,
   sub_room_id UUID REFERENCES sub_rooms(id) ON DELETE CASCADE,
@@ -97,10 +97,10 @@ CREATE TABLE seat_assignments (
   updated_at TIMESTAMPTZ,
   UNIQUE(sub_room_id, column_index, table_index, seat_index)
 );
-```
+\`\`\`
 
 ### **Table: sub_room_teachers** (Collaboratif)
-```sql
+\`\`\`sql
 CREATE TABLE sub_room_teachers (
   id UUID PRIMARY KEY,
   sub_room_id UUID REFERENCES sub_rooms(id),
@@ -109,7 +109,7 @@ CREATE TABLE sub_room_teachers (
   created_at TIMESTAMPTZ,
   UNIQUE(sub_room_id, teacher_id)
 );
-```
+\`\`\`
 
 ---
 
@@ -127,9 +127,9 @@ CREATE TABLE sub_room_teachers (
 **Relation:** sub_rooms.class_ids[] → classes.id
 
 **Multi-classes supporté:**
-```typescript
+\`\`\`typescript
 sub_room.class_ids = ['class-1-id', 'class-2-id']
-```
+\`\`\`
 
 ### **→ Élèves (students)**
 **Relation:** seat_assignments.student_id → students.id
@@ -142,12 +142,12 @@ sub_room.class_ids = ['class-1-id', 'class-2-id']
 **Relation:** sub_rooms.teacher_id → teachers.id
 
 **Mode collaboratif:**
-```typescript
+\`\`\`typescript
 sub_room_teachers: [
   { teacher_id, status: 'accepted' },
   { teacher_id, status: 'pending' }
 ]
-```
+\`\`\`
 
 ### **→ Bac à Sable (sandbox)**
 **Relation:** Propositions référencent sub_rooms
@@ -162,7 +162,7 @@ sub_room_teachers: [
 ## ⚙️ PARAMÈTRES SAUVEGARDÉS
 
 ### **États Locaux**
-```typescript
+\`\`\`typescript
 interface SeatingPlanManagementState {
   subRooms: SubRoom[]
   rooms: Room[]
@@ -179,10 +179,10 @@ interface SeatingPlanManagementState {
   showEditor: boolean
   currentSubRoom: SubRoom | null
 }
-```
+\`\`\`
 
 ### **Données de Placement**
-```typescript
+\`\`\`typescript
 interface SeatAssignment {
   id: string
   sub_room_id: string
@@ -191,12 +191,12 @@ interface SeatAssignment {
   table_index: number     // 0-based
   seat_index: number      // 0-based
 }
-```
+\`\`\`
 
 **Exemple de coordonnées:**
-```
+\`\`\`
 Colonne 0, Table 2, Siège 1 = Place avant-droite de la 3ème table
-```
+\`\`\`
 
 ---
 
@@ -207,7 +207,7 @@ Colonne 0, Table 2, Siège 1 = Place avant-droite de la 3ème table
 **Dialog: CreateSubRoomDialog**
 
 **Formulaire:**
-```typescript
+\`\`\`typescript
 {
   selectedRoom: Room             // Salle parent
   selectedClasses: Class[]       // Une ou plusieurs classes
@@ -215,33 +215,33 @@ Colonne 0, Table 2, Siège 1 = Place avant-droite de la 3ème table
   customName?: string            // Nom personnalisé (optionnel)
   collaborativeTeachers?: Teacher[]  // Mode collaboratif
 }
-```
+\`\`\`
 
 **Nom auto-généré:**
-```typescript
+\`\`\`typescript
 const autoName = `${room.name} - ${teacher.last_name}`
 // Ex: "Salle A - Dupont"
-```
+\`\`\`
 
 **Multi-classes:**
-```typescript
+\`\`\`typescript
 const classIds = selectedClasses.map(c => c.id)
 // Sous-salle pour plusieurs classes en même temps
-```
+\`\`\`
 
 **Mode collaboratif:**
-```typescript
+\`\`\`typescript
 // Créer sub_room
 // Insérer sub_room_teachers avec status='pending'
 // Envoyer notifications aux professeurs ajoutés
-```
+\`\`\`
 
 ### **B. Éditeur de Plan**
 
 **Composant: SeatingPlanEditor**
 
 **Interface visuelle:**
-```
+\`\`\`
 +---------------------------+
 |  [Tableau]                |
 +---------------------------+
@@ -256,7 +256,7 @@ Colonne 1    Colonne 2    Colonne 3
 │ ● ● │     │ ● ● │     │ ● ● │  Table 2
 │ ● ● │     │ ● ● │     │ ● ● │
 └─────┘     └─────┘     └─────┘
-```
+\`\`\`
 
 **Drag & Drop:**
 - Liste élèves (gauche)
@@ -265,14 +265,14 @@ Colonne 1    Colonne 2    Colonne 3
 - Retirer : glisser vers corbeille
 
 **Indicateurs visuels:**
-```typescript
+\`\`\`typescript
 const seatColors = {
   empty: 'bg-gray-100',           // Place vide
   occupied: 'bg-blue-500',        // Place occupée
   hovered: 'bg-blue-300',         // Hover
   selected: 'bg-blue-700'         // Sélectionné
 }
-```
+\`\`\`
 
 **Actions disponibles:**
 - Placer élève
@@ -287,7 +287,7 @@ const seatColors = {
 **Algorithmes disponibles:**
 
 #### **1. Placement Aléatoire**
-```typescript
+\`\`\`typescript
 function randomPlacement(students: Student[], seats: Seat[]) {
   const shuffled = shuffle(students)
   seats.forEach((seat, i) => {
@@ -296,10 +296,10 @@ function randomPlacement(students: Student[], seats: Seat[]) {
     }
   })
 }
-```
+\`\`\`
 
 #### **2. Placement par Ordre Alphabétique**
-```typescript
+\`\`\`typescript
 function alphabeticalPlacement(students: Student[], seats: Seat[]) {
   const sorted = students.sort((a, b) => 
     `${a.last_name} ${a.first_name}`.localeCompare(
@@ -313,10 +313,10 @@ function alphabeticalPlacement(students: Student[], seats: Seat[]) {
     }
   })
 }
-```
+\`\`\`
 
 #### **3. Placement Optimisé (Séparation)**
-```typescript
+\`\`\`typescript
 function optimizedPlacement(students: Student[], seats: Seat[], settings) {
   // Séparer les élèves selon critères:
   // - Délégués répartis
@@ -332,10 +332,10 @@ function optimizedPlacement(students: Student[], seats: Seat[], settings) {
   // Placer les autres
   fillRemainingSeats(others, seats)
 }
-```
+\`\`\`
 
 **Options de placement:**
-```typescript
+\`\`\`typescript
 interface PlacementOptions {
   algorithm: 'random' | 'alphabetical' | 'optimized'
   distributeDelegates: boolean
@@ -344,23 +344,23 @@ interface PlacementOptions {
   keepFriendsTogether: boolean
   separateTroubleMakers: boolean
 }
-```
+\`\`\`
 
 ### **D. Visualisation**
 
 **Modes d'affichage:**
 
 #### **1. Vue Grille**
-```tsx
+\`\`\`tsx
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   {subRooms.map(subRoom => (
     <SubRoomCard key={subRoom.id} subRoom={subRoom} />
   ))}
 </div>
-```
+\`\`\`
 
 #### **2. Vue Liste**
-```tsx
+\`\`\`tsx
 <Table>
   <TableHeader>
     <TableRow>
@@ -378,10 +378,10 @@ interface PlacementOptions {
     ))}
   </TableBody>
 </Table>
-```
+\`\`\`
 
 #### **3. Vue 3D (Visualiseur)**
-```tsx
+\`\`\`tsx
 <SeatingVisualizer
   room={room}
   subRoom={subRoom}
@@ -389,7 +389,7 @@ interface PlacementOptions {
   interactive={true}
   showNames={true}
 />
-```
+\`\`\`
 
 **Affichage 3D:**
 - Perspective isométrique
@@ -403,7 +403,7 @@ interface PlacementOptions {
 **Formats d'export:**
 
 #### **1. PDF**
-```typescript
+\`\`\`typescript
 function exportToPDF(subRoom: SubRoom) {
   const pdf = generatePDF({
     title: subRoom.name,
@@ -415,7 +415,7 @@ function exportToPDF(subRoom: SubRoom) {
   
   downloadFile(pdf, `${subRoom.name}.pdf`)
 }
-```
+\`\`\`
 
 **Contenu PDF:**
 - En-tête : Nom sous-salle, date, professeur
@@ -424,16 +424,16 @@ function exportToPDF(subRoom: SubRoom) {
 - QR code pour accès digital (optionnel)
 
 #### **2. Image (PNG/JPG)**
-```typescript
+\`\`\`typescript
 function exportToImage(subRoom: SubRoom, format: 'png' | 'jpg') {
   const canvas = renderToCanvas(subRoom)
   const dataUrl = canvas.toDataURL(`image/${format}`)
   downloadFile(dataUrl, `${subRoom.name}.${format}`)
 }
-```
+\`\`\`
 
 #### **3. Excel (Liste)**
-```typescript
+\`\`\`typescript
 function exportToExcel(subRoom: SubRoom) {
   const data = seatAssignments.map(assignment => ({
     'Colonne': assignment.column_index + 1,
@@ -446,7 +446,7 @@ function exportToExcel(subRoom: SubRoom) {
   const xlsx = generateXLSX(data)
   downloadFile(xlsx, `${subRoom.name}.xlsx`)
 }
-```
+\`\`\`
 
 ---
 
@@ -455,7 +455,7 @@ function exportToExcel(subRoom: SubRoom) {
 ### **Erreurs Communes**
 
 #### **1. Place Déjà Occupée**
-```typescript
+\`\`\`typescript
 // Contrainte UNIQUE(sub_room_id, column_index, table_index, seat_index)
 if (error.code === '23505' && error.detail.includes('seat')) {
   toast({
@@ -464,10 +464,10 @@ if (error.code === '23505' && error.detail.includes('seat')) {
     variant: "destructive"
   })
 }
-```
+\`\`\`
 
 #### **2. Élève Déjà Placé**
-```typescript
+\`\`\`typescript
 // Un élève ne peut être qu'à une seule place
 const existingAssignment = await checkStudentPlacement(studentId, subRoomId)
 if (existingAssignment) {
@@ -475,10 +475,10 @@ if (existingAssignment) {
   await removeAssignment(existingAssignment.id)
   // Puis assigner nouvelle place
 }
-```
+\`\`\`
 
 #### **3. Sous-salle Pleine**
-```typescript
+\`\`\`typescript
 const totalSeats = calculateTotalSeats(room.config)
 const assignedSeats = seatAssignments.length
 
@@ -490,7 +490,7 @@ if (assignedSeats >= totalSeats) {
   })
   return
 }
-```
+\`\`\`
 
 ---
 
@@ -498,7 +498,7 @@ if (assignedSeats >= totalSeats) {
 
 ### **Workflow 1: Créer un Plan de Classe Simple**
 
-```
+\`\`\`
 1. Professeur clique "Créer un plan"
    └─> Dialog de création s'ouvre
    
@@ -531,11 +531,11 @@ if (assignedSeats >= totalSeats) {
    ├─> seat_assignments insérés en base
    ├─> Toast de succès
    └─> Retour à la liste des plans
-```
+\`\`\`
 
 ### **Workflow 2: Plan Collaboratif Multi-Classes**
 
-```
+\`\`\`
 1. Vie Scolaire crée plan collaboratif
    └─> Dialog de création
    
@@ -571,11 +571,11 @@ if (assignedSeats >= totalSeats) {
    ├─> Placement des élèves
    ├─> Changements visibles en temps réel
    └─> Historique des modifications (optionnel)
-```
+\`\`\`
 
 ### **Workflow 3: Modification d'un Plan Existant**
 
-```
+\`\`\`
 1. Professeur ouvre liste des plans
    └─> Voit ses sous-salles
    
@@ -595,14 +595,14 @@ if (assignedSeats >= totalSeats) {
    
 5. Toast de succès
    └─> Plan accessible immédiatement par délégués et élèves
-```
+\`\`\`
 
 ---
 
 ## 📊 STATISTIQUES & MÉTRIQUES
 
 ### **Par Sous-Salle**
-```typescript
+\`\`\`typescript
 interface SubRoomStats {
   totalSeats: number          // Places totales dans salle
   assignedSeats: number       // Places occupées
@@ -612,17 +612,17 @@ interface SubRoomStats {
   classesCount: number        // Nombre de classes
   collaboratorsCount: number  // Nombre de profs collaborateurs
 }
-```
+\`\`\`
 
 ### **Globales**
-```typescript
+\`\`\`typescript
 const stats = {
   totalSubRooms: subRooms.length,
   avgOccupancy: calculateAvgOccupancy(),
   mostUsedRoom: getMostUsedRoom(),
   totalStudentsPlaced: getTotalPlaced()
 }
-```
+\`\`\`
 
 ---
 

@@ -46,7 +46,7 @@
 
 ### **Structure de Fichiers**
 
-```
+\`\`\`
 edu-plan/
 ├── app/
 │   ├── layout.tsx                    # Root layout
@@ -100,7 +100,7 @@ edu-plan/
     ├── SECTION-PLANS-DE-CLASSE-DOCUMENTATION.md
     ├── SECTION-BAC-A-SABLE-DOCUMENTATION.md
     └── CAHIER-DES-CHARGES-GLOBAL.md (ce fichier)
-```
+\`\`\`
 
 ---
 
@@ -108,7 +108,7 @@ edu-plan/
 
 ### **Diagramme Entité-Relation**
 
-```mermaid
+\`\`\`mermaid
 erDiagram
     establishments ||--o{ profiles : has
     establishments ||--o{ classes : has
@@ -141,65 +141,65 @@ erDiagram
     sub_room_proposals }o--|| classes : "pour"
     sub_room_proposals }o--|| teachers : "adressé_à"
     sub_room_proposals }o--|| profiles : "proposé_par"
-```
+\`\`\`
 
 ### **Tables Principales**
 
 #### **1. establishments** (Établissements)
-```sql
+\`\`\`sql
 id, name, address, phone, email, created_at
-```
+\`\`\`
 
 #### **2. profiles** (Utilisateurs)
-```sql
+\`\`\`sql
 id, establishment_id, role, username, password_hash,
 first_name, last_name, email, phone, can_create_subrooms,
 created_at, updated_at
-```
+\`\`\`
 
 **Rôles:** `vie-scolaire`, `professeur`, `delegue`, `eco-delegue`, `eleve`
 
 #### **3. classes** (Classes)
-```sql
+\`\`\`sql
 id, establishment_id, name, level, level_id, is_deleted,
 created_at, updated_at
-```
+\`\`\`
 
 #### **4. levels** (Niveaux Scolaires)
-```sql
+\`\`\`sql
 id, establishment_id, name, display_order, is_custom,
 created_at, updated_at
-```
+\`\`\`
 
 #### **5. students** (Élèves)
-```sql
+\`\`\`sql
 id, profile_id, establishment_id, class_id,
 first_name, last_name, email, phone, date_of_birth,
 photo_url, is_delegate, is_eco_delegate,
 created_at, updated_at
-```
+\`\`\`
 
 #### **6. teachers** (Professeurs)
-```sql
+\`\`\`sql
 id, profile_id, establishment_id,
 first_name, last_name, email, phone, subject,
 is_principal, principal_class_id,
 created_at, updated_at
-```
+\`\`\`
 
 #### **7. teacher_classes** (Liaison Professeurs-Classes)
-```sql
+\`\`\`sql
 id, teacher_id, class_id, subject, created_at
-```
+\`\`\`
 
 #### **8. rooms** (Salles)
-```sql
+\`\`\`sql
 id, establishment_id, name, code, board_position,
 config (JSONB), created_by, created_at, updated_at
-```
+\`\`\`
 
 **config:**
-```json
+\`\`\`json
 {
   "columns": [
     {
@@ -209,62 +209,62 @@ config (JSONB), created_by, created_at, updated_at
     }
   ]
 }
-```
+\`\`\`
 
 #### **9. room_templates** (Templates de Salles)
-```sql
+\`\`\`sql
 id, user_id, establishment_id, name, description,
 config (JSONB), is_pinned, created_at, updated_at
-```
+\`\`\`
 
 #### **10. sub_rooms** (Sous-Salles / Plans de Classe)
-```sql
+\`\`\`sql
 id, room_id, name, custom_name, teacher_id,
 establishment_id, class_ids (UUID[]), is_sandbox,
 created_at, updated_at
-```
+\`\`\`
 
 #### **11. seat_assignments** (Placements)
-```sql
+\`\`\`sql
 id, sub_room_id, student_id,
 column_index, table_index, seat_index,
 created_at, updated_at
-```
+\`\`\`
 
 **Contrainte:** `UNIQUE(sub_room_id, column_index, table_index, seat_index)`
 
 #### **12. sub_room_teachers** (Collaborateurs)
-```sql
+\`\`\`sql
 id, sub_room_id, teacher_id,
 status ('pending'|'accepted'|'rejected'),
 created_at
-```
+\`\`\`
 
 #### **13. sub_room_proposals** (Propositions Bac à Sable)
-```sql
+\`\`\`sql
 id, name, room_id, class_id, teacher_id, proposed_by,
 establishment_id, status, is_submitted,
 seat_assignments (JSONB), comments,
 reviewed_by, reviewed_at, rejection_reason, sub_room_id,
 created_at, updated_at
-```
+\`\`\`
 
 **Statuts:** `draft`, `pending`, `approved`, `rejected`
 
 #### **14. notifications** (Notifications)
-```sql
+\`\`\`sql
 id, user_id, type, message, data (JSONB), is_read,
 created_at
-```
+\`\`\`
 
 **Types:** `proposal_submitted`, `proposal_approved`, `proposal_rejected`,
 `proposal_returned`, `teacher_invite`, `sub_room_created`
 
 #### **15. action_logs** (Logs d'Actions)
-```sql
+\`\`\`sql
 id, user_id, establishment_id, action_type, entity_type,
 entity_id, details (JSONB), created_at
-```
+\`\`\`
 
 ---
 
@@ -272,7 +272,7 @@ entity_id, details (JSONB), created_at
 
 ### **Graphe des Connexions**
 
-```
+\`\`\`
 ┌─────────────────────┐
 │  ÉTABLISSEMENT      │
 │  (Central)          │
@@ -291,7 +291,7 @@ entity_id, details (JSONB), created_at
     │BAC À SABLE │
     │(Propositions)
     └────────────┘
-```
+\`\`\`
 
 ### **Dépendances et Ordre de Création**
 
@@ -351,7 +351,7 @@ entity_id, details (JSONB), created_at
 
 ### **Flow de Connexion**
 
-```
+\`\`\`
 1. Utilisateur saisit username + password
    └─> POST /api/auth/login
    
@@ -369,13 +369,13 @@ entity_id, details (JSONB), created_at
    ├─> Sur chaque requête
    ├─> Extrait user_id et role
    └─> Applique permissions RLS
-```
+\`\`\`
 
 ### **Row Level Security (RLS)**
 
 **Politique par table:**
 
-```sql
+\`\`\`sql
 -- Exemple: students
 CREATE POLICY "Users can view students from their establishment"
   ON students FOR SELECT
@@ -393,7 +393,7 @@ CREATE POLICY "Only vie-scolaire can modify students"
       AND establishment_id = students.establishment_id
     )
   );
-```
+\`\`\`
 
 ---
 
@@ -429,13 +429,13 @@ CREATE POLICY "Only vie-scolaire can modify students"
 - **Mono:** JetBrains Mono (code, identifiants)
 
 **Hiérarchie:**
-```css
+\`\`\`css
 h1: text-3xl font-bold
 h2: text-2xl font-bold
 h3: text-xl font-semibold
 body: text-base
 small: text-sm
-```
+\`\`\`
 
 ### **Composants UI**
 
@@ -450,7 +450,7 @@ Tous basés sur **shadcn/ui**:
 
 **Supabase Realtime** activé sur `notifications`:
 
-```typescript
+\`\`\`typescript
 supabase
   .channel('notifications')
   .on('postgres_changes', {
@@ -463,7 +463,7 @@ supabase
     incrementBadge()
   })
   .subscribe()
-```
+\`\`\`
 
 **Types de notifications:**
 - Proposition soumise (→ Professeur)
@@ -533,7 +533,7 @@ supabase
 
 ### **Workflow 1: Début d'Année Scolaire**
 
-```
+\`\`\`
 1. Vie Scolaire se connecte
    
 2. Créer Niveaux
@@ -564,11 +564,11 @@ supabase
    → Élèves (délégués/éco-délégués)
    → Professeurs
    → Communiquer identifiants
-```
+\`\`\`
 
 ### **Workflow 2: Délégué Propose un Plan**
 
-```
+\`\`\`
 1. Délégué se connecte
    
 2. Va dans "Bac à sable"
@@ -599,11 +599,11 @@ supabase
 8. Délégué reçoit notif du résultat
    → Si validé: Plan visible dans section Plans
    → Si refusé: Peut rééditer et resoumettre
-```
+\`\`\`
 
 ### **Workflow 3: Plan Collaboratif Multi-Classes**
 
-```
+\`\`\`
 1. Professeur Principal crée sous-salle
    → Sélectionne plusieurs classes
    → Ajoute professeurs collaborateurs
@@ -624,7 +624,7 @@ supabase
 5. Sauvegarde finale
    → Plan accessible à tous les profs
    → Visible par toutes les classes impliquées
-```
+\`\`\`
 
 ---
 
@@ -790,13 +790,13 @@ supabase
 - Export complet mensuel (archivage S3)
 
 **Procédure de restauration:**
-```bash
+\`\`\`bash
 # Télécharger dump
 supabase db dump > backup.sql
 
 # Restaurer
 psql $DATABASE_URL < backup.sql
-```
+\`\`\`
 
 ### **Monitoring**
 
